@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { MapContainer, TileLayer, Circle, Marker, Popup, Polygon, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -12,6 +12,79 @@ const defaultImages = {
   urban: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='800' height='600' fill='%23051829'/><rect x='100' y='250' width='120' height='350' fill='%23142e4a'/><rect x='260' y='180' width='140' height='420' fill='%231c4066'/><rect x='440' y='300' width='110' height='300' fill='%23142e4a'/><rect x='580' y='220' width='130' height='380' fill='%231c4066'/><text x='400' y='120' font-family='sans-serif' font-size='32' font-weight='bold' fill='%233896e0' text-anchor='middle'>URBAN FLOODING MONITORING</text></svg>",
   responders: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='800' height='600' fill='%23051829'/><circle cx='400' cy='300' r='180' fill='none' stroke='%2344d67c' stroke-width='4'/><circle cx='400' cy='300' r='100' fill='none' stroke='%2344d67c' stroke-width='2' stroke-dasharray='8,8'/><text x='400' y='308' font-family='sans-serif' font-size='32' font-weight='bold' fill='%2344d67c' text-anchor='middle'>EMERGENCY RESPONDERS</text></svg>"
 };
+
+// --- THEME SWITCHER COMPONENT ---
+const THEMES = [
+  { id: "dark", label: "Dark Command", icon: "◐" },
+  { id: "light", label: "Light Command", icon: "☀" },
+  { id: "high-contrast", label: "High Contrast", icon: "◉" }
+];
+
+function ThemeSwitcher({ currentTheme, onThemeChange }) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  const activeThemeObj = THEMES.find((t) => t.id === currentTheme) || THEMES[0];
+
+  return (
+    <div className="theme-switcher-wrapper" ref={dropdownRef}>
+      <button
+        className="theme-switcher-btn"
+        onClick={() => setOpen(!open)}
+        aria-label="Select theme mode"
+        aria-haspopup="true"
+        aria-expanded={open}
+        title="Switch color theme"
+      >
+        <span>{activeThemeObj.icon}</span>
+        <span>{activeThemeObj.label}</span>
+      </button>
+
+      {open && (
+        <div className="theme-menu-popover" role="menu">
+          {THEMES.map((theme) => {
+            const isActive = theme.id === currentTheme;
+            return (
+              <button
+                key={theme.id}
+                role="menuitem"
+                className={`theme-menu-item ${isActive ? "active" : ""}`}
+                onClick={() => {
+                  onThemeChange(theme.id);
+                  setOpen(false);
+                }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>{theme.icon}</span>
+                  <span>{theme.label}</span>
+                </span>
+                {isActive && <span className="theme-check-mark">✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // --- 1. RICH SCENARIO DATA ENGINE ---
 const scenariosData = {
@@ -403,7 +476,7 @@ function MapController({ center, zoom }) {
 }
 
 // --- 2. LANDING PAGE COMPONENT ---
-function LandingPage({ onEnter }) {
+function LandingPage({ onEnter, currentTheme, onThemeChange }) {
   return (
     <div className="landing-page">
       <div className="sensor-nodes-container">
@@ -430,7 +503,8 @@ function LandingPage({ onEnter }) {
           <a href="#intelligence" className="landing-nav-link">Capabilities</a>
           <a href="#about" className="landing-nav-link">Governance</a>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <ThemeSwitcher currentTheme={currentTheme} onThemeChange={onThemeChange} />
           <div className="landing-nav-status">
             <span></span>SYSTEM OPERATIONAL
           </div>
@@ -444,10 +518,10 @@ function LandingPage({ onEnter }) {
       <section className="landing-hero" id="platform">
         <div className="hero-left">
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-            <span style={{ fontSize: "11px", fontWeight: "800", color: "#3896e0", background: "rgba(56, 150, 224, 0.15)", border: "1px solid rgba(56, 150, 224, 0.3)", padding: "4px 10px", borderRadius: "6px", textTransform: "uppercase" }}>
+            <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--accent-info)", background: "var(--accent-info-bg)", border: "1px solid var(--accent-info-border)", padding: "4px 10px", borderRadius: "6px", textTransform: "uppercase" }}>
               ● SYSTEM OPERATIONAL
             </span>
-            <span style={{ fontSize: "11px", fontWeight: "800", color: "#ffb733", background: "rgba(212, 142, 34, 0.15)", border: "1px solid rgba(212, 142, 34, 0.3)", padding: "4px 10px", borderRadius: "6px" }}>
+            <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--accent-warning)", background: "var(--accent-warning-bg)", border: "1px solid var(--accent-warning-border)", padding: "4px 10px", borderRadius: "6px" }}>
               SIH26191 PROTOTYPE
             </span>
           </div>
@@ -455,7 +529,7 @@ function LandingPage({ onEnter }) {
           <h1>AI-POWERED GEOSPATIAL DISASTER INTELLIGENCE</h1>
           <h2>
             FROM RED ZONE<br />
-            <span style={{ color: "#44d67c" }}>TO SAFE ZONE.</span>
+            <span style={{ color: "var(--accent-success)" }}>TO SAFE ZONE.</span>
           </h2>
           <p>
             JanRakshak empowers disaster management authorities with real-time geospatial risk modeling, AI safe-site recommendation explainability, and offline operational resilience during critical emergencies.
@@ -695,6 +769,27 @@ function LandingPage({ onEnter }) {
 function App() {
   const [view, setView] = useState(() => window.location.hash === "#/dashboard" ? "dashboard" : "landing");
 
+  // Global Theme State with Persistence
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem("janrakshak_theme") || "dark";
+    } catch (e) {
+      return "dark";
+    }
+  });
+
+  const handleThemeChange = (newTheme) => {
+    setTheme(newTheme);
+    try {
+      localStorage.setItem("janrakshak_theme", newTheme);
+      document.documentElement.setAttribute("data-theme", newTheme);
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+
   useEffect(() => {
     const handleHashChange = () => setView(window.location.hash === "#/dashboard" ? "dashboard" : "landing");
     window.addEventListener("hashchange", handleHashChange);
@@ -896,7 +991,7 @@ function App() {
   };
 
   if (view === "landing") {
-    return <LandingPage onEnter={navigateToDashboard} />;
+    return <LandingPage onEnter={navigateToDashboard} currentTheme={theme} onThemeChange={handleThemeChange} />;
   }
 
   return (
@@ -904,20 +999,23 @@ function App() {
       {/* Dashboard Top Header */}
       <header className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <button style={{ background: "transparent", border: "none", color: "#8aa3b8", fontSize: "12px", cursor: "pointer", padding: 0 }} onClick={() => { window.location.hash = "/"; setView("landing"); }}>
+          <button style={{ background: "transparent", border: "none", color: "var(--text-muted)", fontSize: "12px", cursor: "pointer", padding: 0 }} onClick={() => { window.location.hash = "/"; setView("landing"); }}>
             &larr; MAIN PAGE
           </button>
-          <div style={{ height: "20px", width: "1px", background: "#153354" }}></div>
+          <div style={{ height: "20px", width: "1px", background: "var(--border-primary)" }}></div>
           <div>
-            <div className="brand" style={{ fontSize: "18px" }}>🛡️ JANRAKSHAK</div>
+            <div className="brand">🛡️ JANRAKSHAK</div>
             <div className="tagline">DISASTER INTELLIGENCE PLATFORM • SIH26191 PROTOTYPE</div>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div style={{ fontSize: "11px", fontWeight: "700", color: "#8aa3b8" }}>
-            OPERATOR: <strong style={{ color: "#ffffff" }}>COMMANDER 01</strong>
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <ThemeSwitcher currentTheme={theme} onThemeChange={handleThemeChange} />
+          
+          <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-muted)" }}>
+            OPERATOR: <strong style={{ color: "var(--text-primary)" }}>COMMANDER 01</strong>
           </div>
+          
           <div className="header-actions">
             <span className={"status " + (offline ? "offline" : "online")}>
               {offline ? "● OFFLINE MODE" : "● SYSTEM ONLINE"}
@@ -933,8 +1031,8 @@ function App() {
           <div className={`status-badge ${offline ? "degraded" : "operational"}`}>
             <span>●</span> {offline ? "DEGRADED CONNECTIVITY" : "SYSTEM OPERATIONAL"}
           </div>
-          <div>SCENARIO: <strong style={{ color: "#ffffff" }}>{activeScenario.name}</strong></div>
-          <div>INCIDENT: <strong style={{ color: "#ffffff" }}>{selected}</strong></div>
+          <div>SCENARIO: <strong style={{ color: "var(--text-primary)" }}>{activeScenario.name}</strong></div>
+          <div>INCIDENT: <strong style={{ color: "var(--text-primary)" }}>{selected}</strong></div>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             THREAT LEVEL:
             <span className={`threat-pill ${displayThreatLevel === "CRITICAL" ? "critical" : displayThreatLevel === "HIGH" ? "high" : "moderate"}`}>
@@ -945,7 +1043,7 @@ function App() {
 
         <div className="command-status-right">
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <label htmlFor="scenario-select" style={{ fontSize: "10px", fontWeight: "700", color: "#7b9bb6" }}>SELECT SCENARIO:</label>
+            <label htmlFor="scenario-select" style={{ fontSize: "10px", fontWeight: "700", color: "var(--text-muted)" }}>SELECT SCENARIO:</label>
             <select
               id="scenario-select"
               className="scenario-select"
@@ -958,9 +1056,9 @@ function App() {
             </select>
           </div>
 
-          <div>LAST SYNC: <strong style={{ color: "#ffffff" }}>{lastUpdated}</strong></div>
+          <div>LAST SYNC: <strong style={{ color: "var(--text-primary)" }}>{lastUpdated}</strong></div>
           {offline && (
-            <span style={{ color: "#ffb733", fontWeight: "800" }}>
+            <span style={{ color: "var(--accent-warning)", fontWeight: "800" }}>
               QUEUED: {queuedEvents}
             </span>
           )}
@@ -990,7 +1088,7 @@ function App() {
         <div className="kpi-card">
           <div className="kpi-header">
             <span className="kpi-label">SAFE SITES AVAILABLE</span>
-            <span style={{ fontSize: "9px", fontWeight: "800", color: "#44d67c", background: "rgba(63, 175, 106, 0.15)", padding: "2px 6px", borderRadius: "4px" }}>OPERATIONAL</span>
+            <span style={{ fontSize: "9px", fontWeight: "800", color: "var(--accent-success)", background: "var(--accent-success-bg)", padding: "2px 6px", borderRadius: "4px" }}>OPERATIONAL</span>
           </div>
           <div className="kpi-value green">{`0${Object.keys(activeScenario.safeSites).length}`}</div>
           <div className="kpi-subtext">Capacity & water supply verified</div>
@@ -999,7 +1097,7 @@ function App() {
         <div className="kpi-card">
           <div className="kpi-header">
             <span className="kpi-label">EVACUATION ROUTES</span>
-            <span style={{ fontSize: "9px", fontWeight: "800", color: "#3896e0", background: "rgba(56, 150, 224, 0.15)", padding: "2px 6px", borderRadius: "4px" }}>MONITOR</span>
+            <span style={{ fontSize: "9px", fontWeight: "800", color: "var(--accent-info)", background: "var(--accent-info-bg)", padding: "2px 6px", borderRadius: "4px" }}>MONITOR</span>
           </div>
           <div className="kpi-value blue">{`0${activeScenario.evacuationRoutes.length}`}</div>
           <div className="kpi-subtext">Active road status monitored</div>
@@ -1043,40 +1141,40 @@ function App() {
               <div className="risk-item">
                 <div className="risk-item-header">
                   <span>Flood Risk Index</span>
-                  <span style={{ color: "#ff5463" }}>{displayFloodRisk} / 100</span>
+                  <span style={{ color: "var(--accent-danger)" }}>{displayFloodRisk} / 100</span>
                 </div>
                 <div className="risk-progress-track">
-                  <div className="risk-progress-fill" style={{ width: `${displayFloodRisk}%`, background: "#ff5463" }}></div>
+                  <div className="risk-progress-fill" style={{ width: `${displayFloodRisk}%`, background: "var(--accent-danger)" }}></div>
                 </div>
               </div>
 
               <div className="risk-item">
                 <div className="risk-item-header">
                   <span>Landslide Risk Index</span>
-                  <span style={{ color: "#ffb733" }}>{displayLandslideRisk} / 100</span>
+                  <span style={{ color: "var(--accent-warning)" }}>{displayLandslideRisk} / 100</span>
                 </div>
                 <div className="risk-progress-track">
-                  <div className="risk-progress-fill" style={{ width: `${displayLandslideRisk}%`, background: "#ffb733" }}></div>
+                  <div className="risk-progress-fill" style={{ width: `${displayLandslideRisk}%`, background: "var(--accent-warning)" }}></div>
                 </div>
               </div>
 
               <div className="risk-item">
                 <div className="risk-item-header">
                   <span>Rainfall Telemetry</span>
-                  <span style={{ color: "#ff5463" }}>{displayRainfall} mm</span>
+                  <span style={{ color: "var(--accent-danger)" }}>{displayRainfall} mm</span>
                 </div>
                 <div className="risk-progress-track">
-                  <div className="risk-progress-fill" style={{ width: `${Math.min(100, (displayRainfall / 300) * 100)}%`, background: "#ff5463" }}></div>
+                  <div className="risk-progress-fill" style={{ width: `${Math.min(100, (displayRainfall / 300) * 100)}%`, background: "var(--accent-danger)" }}></div>
                 </div>
               </div>
 
               <div className="risk-item">
                 <div className="risk-item-header">
                   <span>Road Accessibility</span>
-                  <span style={{ color: "#3896e0" }}>{currentIncident.roadAccess} ({currentIncident.roadAccessRating || 40}%)</span>
+                  <span style={{ color: "var(--accent-info)" }}>{currentIncident.roadAccess} ({currentIncident.roadAccessRating || 40}%)</span>
                 </div>
                 <div className="risk-progress-track">
-                  <div className="risk-progress-fill" style={{ width: `${currentIncident.roadAccessRating || 40}%`, background: "#3896e0" }}></div>
+                  <div className="risk-progress-fill" style={{ width: `${currentIncident.roadAccessRating || 40}%`, background: "var(--accent-info)" }}></div>
                 </div>
               </div>
             </div>
@@ -1134,7 +1232,7 @@ function App() {
               <div className="subtle">SIMULATED SCENARIO • {activeScenario.locationName.toUpperCase()} • Sync: {lastUpdated}</div>
             </div>
             <div className="legend">
-              <span className="dot red"></span> Critical <span className="dot green"></span> Safe Site <span style={{ color: "#3896e0" }}>🏥 Infra</span>
+              <span className="dot red"></span> Critical <span className="dot green"></span> Safe Site <span style={{ color: "var(--accent-info)" }}>🏥 Infra</span>
             </div>
           </div>
 
@@ -1178,7 +1276,7 @@ function App() {
               </div>
               <p className="map-summary-type">{currentIncident.type}</p>
               <div className="map-summary-stat-row"><span>Affected:</span><strong>{currentIncident.affected.toLocaleString()}</strong></div>
-              <div className="map-summary-stat-row"><span>Hazard Score:</span><strong style={{ color: "#ff5463" }}>{displayHazardScore} / 100</strong></div>
+              <div className="map-summary-stat-row"><span>Hazard Score:</span><strong style={{ color: "var(--accent-danger)" }}>{displayHazardScore} / 100</strong></div>
               <div className="map-summary-stat-row"><span>Road Access:</span><strong>{currentIncident.roadAccess}</strong></div>
             </div>
 
@@ -1209,22 +1307,22 @@ function App() {
                   <Marker key={site.name} position={site.center} icon={createSafeIcon(isSelectedOverride)}>
                     <Popup>
                       <div style={{ minWidth: "170px", fontFamily: "Inter, sans-serif" }}>
-                        <h4 style={{ margin: "0 0 6px 0", fontSize: "11px", fontWeight: "800", color: "#3896e0", borderBottom: "1px solid #142f4c", paddingBottom: "4px" }}>
+                        <h4 style={{ margin: "0 0 6px 0", fontSize: "11px", fontWeight: "800", color: "var(--accent-info)", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "4px" }}>
                           🏠 {site.name.toUpperCase()}
                         </h4>
                         <table style={{ width: "100%", fontSize: "9.5px", borderCollapse: "collapse", marginBottom: "8px" }}>
                           <tbody>
-                            <tr><td style={{ color: "#7b9bb6" }}>Capacity:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{site.capacity.toLocaleString()}</td></tr>
-                            <tr><td style={{ color: "#7b9bb6" }}>Occupied:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{site.occupied.toLocaleString()}</td></tr>
-                            <tr><td style={{ color: "#7b9bb6" }}>Available:</td><td style={{ textAlign: "right", fontWeight: "700", color: "#44d67c" }}>{site.available.toLocaleString()}</td></tr>
-                            <tr><td style={{ color: "#7b9bb6" }}>Distance:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{site.distance}</td></tr>
-                            <tr><td style={{ color: "#7b9bb6" }}>Exposure:</td><td style={{ textAlign: "right", fontWeight: "700", color: "#44d67c" }}>{site.hazardExposure}</td></tr>
-                            <tr><td style={{ color: "#7b9bb6" }}>Water Status:</td><td style={{ textAlign: "right", fontWeight: "700", color: "#44d67c" }}>{site.waterStatus || "VERIFIED"}</td></tr>
+                            <tr><td style={{ color: "var(--text-muted)" }}>Capacity:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{site.capacity.toLocaleString()}</td></tr>
+                            <tr><td style={{ color: "var(--text-muted)" }}>Occupied:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{site.occupied.toLocaleString()}</td></tr>
+                            <tr><td style={{ color: "var(--text-muted)" }}>Available:</td><td style={{ textAlign: "right", fontWeight: "700", color: "var(--accent-success)" }}>{site.available.toLocaleString()}</td></tr>
+                            <tr><td style={{ color: "var(--text-muted)" }}>Distance:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{site.distance}</td></tr>
+                            <tr><td style={{ color: "var(--text-muted)" }}>Exposure:</td><td style={{ textAlign: "right", fontWeight: "700", color: "var(--accent-success)" }}>{site.hazardExposure}</td></tr>
+                            <tr><td style={{ color: "var(--text-muted)" }}>Water Status:</td><td style={{ textAlign: "right", fontWeight: "700", color: "var(--accent-success)" }}>{site.waterStatus || "VERIFIED"}</td></tr>
                           </tbody>
                         </table>
                         <button
                           style={{
-                            width: "100%", padding: "6px", background: isSelectedOverride ? "#3faf6a" : "#1f5a8a",
+                            width: "100%", padding: "6px", background: isSelectedOverride ? "var(--accent-success)" : "var(--accent-info)",
                             color: "#fff", border: "none", borderRadius: "4px", fontWeight: "700", fontSize: "9px", cursor: "pointer"
                           }}
                           onClick={() => {
@@ -1249,8 +1347,8 @@ function App() {
                     <Popup>
                       <div style={{ fontSize: "10.5px", fontFamily: "Inter, sans-serif" }}>
                         <strong>{infra.icon} {infra.name}</strong>
-                        <div style={{ marginTop: "4px", color: "#7b9bb6" }}>Category: {infra.category}</div>
-                        <div style={{ color: "#44d67c", fontWeight: "700", marginTop: "2px" }}>Status: Operational</div>
+                        <div style={{ marginTop: "4px", color: "var(--text-muted)" }}>Category: {infra.category}</div>
+                        <div style={{ color: "var(--accent-success)", fontWeight: "700", marginTop: "2px" }}>Status: Operational</div>
                       </div>
                     </Popup>
                   </Marker>
@@ -1261,21 +1359,21 @@ function App() {
               {showRoutes && activeScenario.evacuationRoutes.map((route, idx) => {
                 if (route.incident !== selected) return null;
                 return (
-                  <Polyline key={`route-${idx}`} positions={route.positions} pathOptions={{ color: "#3896e0", weight: 4, dashArray: "6, 6", opacity: 0.85 }}>
+                  <Polyline key={`route-${idx}`} positions={route.positions} pathOptions={{ color: "var(--accent-info)", weight: 4, dashArray: "6, 6", opacity: 0.85 }}>
                     <Popup>
                       <div style={{ minWidth: "170px", fontFamily: "Inter, sans-serif" }}>
-                        <h4 style={{ margin: "0 0 4px 0", fontSize: "10px", fontWeight: "800", color: "#3896e0" }}>RECOMMENDED EVACUATION ROUTE</h4>
-                        <p style={{ margin: "0 0 8px 0", fontSize: "9px", color: "#7b9bb6", fontWeight: "600" }}>{route.name}</p>
+                        <h4 style={{ margin: "0 0 4px 0", fontSize: "10px", fontWeight: "800", color: "var(--accent-info)" }}>RECOMMENDED EVACUATION ROUTE</h4>
+                        <p style={{ margin: "0 0 8px 0", fontSize: "9px", color: "var(--text-muted)", fontWeight: "600" }}>{route.name}</p>
                         <table style={{ width: "100%", fontSize: "9px", borderCollapse: "collapse", marginBottom: "8px" }}>
                           <tbody>
-                            <tr><td style={{ color: "#7b9bb6" }}>Distance:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{route.distance}</td></tr>
-                            <tr><td style={{ color: "#7b9bb6" }}>ETA:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{route.time}</td></tr>
-                            <tr><td style={{ color: "#7b9bb6" }}>Status:</td><td style={{ textAlign: "right", fontWeight: "700", color: "#44d67c" }}>{route.status}</td></tr>
-                            <tr><td style={{ color: "#7b9bb6" }}>Congestion:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{route.congestion}</td></tr>
+                            <tr><td style={{ color: "var(--text-muted)" }}>Distance:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{route.distance}</td></tr>
+                            <tr><td style={{ color: "var(--text-muted)" }}>ETA:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{route.time}</td></tr>
+                            <tr><td style={{ color: "var(--text-muted)" }}>Status:</td><td style={{ textAlign: "right", fontWeight: "700", color: "var(--accent-success)" }}>{route.status}</td></tr>
+                            <tr><td style={{ color: "var(--text-muted)" }}>Congestion:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{route.congestion}</td></tr>
                           </tbody>
                         </table>
                         <button
-                          style={{ width: "100%", padding: "6px", background: "#ff5463", color: "#fff", border: "none", borderRadius: "4px", fontWeight: "700", fontSize: "9px", cursor: "pointer" }}
+                          style={{ width: "100%", padding: "6px", background: "var(--accent-danger)", color: "#fff", border: "none", borderRadius: "4px", fontWeight: "700", fontSize: "9px", cursor: "pointer" }}
                           onClick={() => setActiveModal("evacuation")}
                         >
                           OPEN EVACUATION MODE
@@ -1307,7 +1405,7 @@ function App() {
           {/* Smart Evacuation Route Card */}
           <div className="smart-route-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-              <span style={{ fontSize: "10px", fontWeight: "800", color: "#3896e0", letterSpacing: "0.5px" }}>RECOMMENDED EVACUATION ROUTE</span>
+              <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--accent-info)", letterSpacing: "0.5px" }}>RECOMMENDED EVACUATION ROUTE</span>
               <span className="threat-pill moderate" style={{ fontSize: "8.5px" }}>STATUS: CLEAR</span>
             </div>
             <div className="smart-route-flow">
@@ -1315,10 +1413,10 @@ function App() {
               <span className="smart-route-arrow">&rarr; {activeEvacRoute ? activeEvacRoute.name.split("(")[0] : "Route R-04"} &rarr;</span>
               <span>🟢 {recommendedSite.name}</span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10.5px", color: "#8aa3b8" }}>
-              <span>Distance: <strong style={{ color: "#ffffff" }}>{recommendedSite.distance}</strong> • ETA: <strong style={{ color: "#ffffff" }}>{activeEvacRoute ? activeEvacRoute.time : "11 min"}</strong> • Access: <strong style={{ color: "#ffffff" }}>{currentIncident.roadAccess}</strong></span>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10.5px", color: "var(--text-muted)" }}>
+              <span>Distance: <strong style={{ color: "var(--text-primary)" }}>{recommendedSite.distance}</strong> • ETA: <strong style={{ color: "var(--text-primary)" }}>{activeEvacRoute ? activeEvacRoute.time : "11 min"}</strong> • Access: <strong style={{ color: "var(--text-primary)" }}>{currentIncident.roadAccess}</strong></span>
               <button
-                style={{ background: "#ff5463", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "10px", fontWeight: "800", cursor: "pointer" }}
+                style={{ background: "var(--accent-danger)", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "10px", fontWeight: "800", cursor: "pointer" }}
                 onClick={() => setActiveModal("evacuation")}
               >
                 VIEW ROUTE ON MAP &rarr;
@@ -1332,10 +1430,10 @@ function App() {
           {/* AI Decision Support & Explainability Card */}
           <div className="ai-explainability-card">
             <div className="ai-gov-badge">🤖 JANRAKSHAK AI DECISION SUPPORT</div>
-            <div className="critical" style={{ fontSize: "16px", marginBottom: "4px" }}>
+            <div className="critical" style={{ fontSize: "16px", marginBottom: "4px", color: "var(--accent-danger)", fontWeight: "800" }}>
               {displayPriority === "IMMEDIATE" ? "IMMEDIATE RELOCATION RECOMMENDED" : "MONITOR SITUATION"}
             </div>
-            <p style={{ fontSize: "11px", color: "#8aa3b8", margin: "0 0 10px 0" }}>
+            <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 10px 0" }}>
               {currentIncident.name} has high exposure and evacuation constraints.
             </p>
 
@@ -1345,7 +1443,7 @@ function App() {
               <small>{recommendedSite.distance} • {recommendedSite.available.toLocaleString()} capacity available</small>
             </div>
 
-            <div style={{ fontSize: "9.5px", fontWeight: "800", color: "#3896e0", textTransform: "uppercase", marginTop: "10px", marginBottom: "4px" }}>
+            <div style={{ fontSize: "9.5px", fontWeight: "800", color: "var(--accent-info)", textTransform: "uppercase", marginTop: "10px", marginBottom: "4px" }}>
               Verification Checkpoints:
             </div>
             <div className="ai-checkpoints">
@@ -1356,8 +1454,8 @@ function App() {
               ))}
             </div>
 
-            <div style={{ fontSize: "10px", color: "#7b9bb6", marginTop: "8px" }}>
-              AI Confidence Rating: <strong style={{ color: "#3896e0" }}>{currentIncident.confidence}%</strong>
+            <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "8px" }}>
+              AI Confidence Rating: <strong style={{ color: "var(--accent-info)" }}>{currentIncident.confidence}%</strong>
             </div>
 
             <div className="ai-actions-row">
@@ -1372,7 +1470,7 @@ function App() {
               </button>
             </div>
 
-            <div style={{ fontSize: "8.5px", color: "#627c94", marginTop: "10px", textAlign: "center" }}>
+            <div style={{ fontSize: "8.5px", color: "var(--text-subtle)", marginTop: "10px", textAlign: "center" }}>
               AI-ASSISTED DECISION SUPPORT • NOT AN AUTONOMOUS EVACUATION AUTHORITY
             </div>
           </div>
@@ -1395,7 +1493,7 @@ function App() {
           {/* Vulnerability Snapshot Panel */}
           <div className="panel">
             <div className="panel-title">VULNERABILITY SNAPSHOT</div>
-            <div className="big-number" style={{ fontSize: "28px", fontWeight: "800", color: "#3896e0" }}>
+            <div className="big-number" style={{ fontSize: "28px", fontWeight: "800", color: "var(--accent-info)" }}>
               {currentIncident.affected.toLocaleString()}
             </div>
             <div className="subtle">PEOPLE AT RISK</div>
@@ -1404,40 +1502,40 @@ function App() {
               <div className="risk-item">
                 <div className="risk-item-header">
                   <span>Children (0-12 yrs)</span>
-                  <span style={{ fontWeight: "800", color: "#ffffff" }}>{currentIncident.vulnerability.children}</span>
+                  <span style={{ fontWeight: "800", color: "var(--text-primary)" }}>{currentIncident.vulnerability.children}</span>
                 </div>
                 <div className="risk-progress-track">
-                  <div className="risk-progress-fill" style={{ width: `${Math.round((currentIncident.vulnerability.children / currentIncident.affected) * 100)}%`, background: "#3896e0" }}></div>
+                  <div className="risk-progress-fill" style={{ width: `${Math.round((currentIncident.vulnerability.children / currentIncident.affected) * 100)}%`, background: "var(--accent-info)" }}></div>
                 </div>
               </div>
 
               <div className="risk-item">
                 <div className="risk-item-header">
                   <span>Elderly (60+ yrs)</span>
-                  <span style={{ fontWeight: "800", color: "#ffffff" }}>{currentIncident.vulnerability.elderly}</span>
+                  <span style={{ fontWeight: "800", color: "var(--text-primary)" }}>{currentIncident.vulnerability.elderly}</span>
                 </div>
                 <div className="risk-progress-track">
-                  <div className="risk-progress-fill" style={{ width: `${Math.round((currentIncident.vulnerability.elderly / currentIncident.affected) * 100)}%`, background: "#ffb733" }}></div>
+                  <div className="risk-progress-fill" style={{ width: `${Math.round((currentIncident.vulnerability.elderly / currentIncident.affected) * 100)}%`, background: "var(--accent-warning)" }}></div>
                 </div>
               </div>
 
               <div className="risk-item">
                 <div className="risk-item-header">
                   <span>Persons with Disabilities</span>
-                  <span style={{ fontWeight: "800", color: "#ffffff" }}>{currentIncident.vulnerability.disability}</span>
+                  <span style={{ fontWeight: "800", color: "var(--text-primary)" }}>{currentIncident.vulnerability.disability}</span>
                 </div>
                 <div className="risk-progress-track">
-                  <div className="risk-progress-fill" style={{ width: `${Math.round((currentIncident.vulnerability.disability / currentIncident.affected) * 100)}%`, background: "#ff5463" }}></div>
+                  <div className="risk-progress-fill" style={{ width: `${Math.round((currentIncident.vulnerability.disability / currentIncident.affected) * 100)}%`, background: "var(--accent-danger)" }}></div>
                 </div>
               </div>
 
               <div className="risk-item">
                 <div className="risk-item-header">
                   <span>Medical Priority Cases</span>
-                  <span style={{ fontWeight: "800", color: "#ffffff" }}>{currentIncident.vulnerability.medical}</span>
+                  <span style={{ fontWeight: "800", color: "var(--text-primary)" }}>{currentIncident.vulnerability.medical}</span>
                 </div>
                 <div className="risk-progress-track">
-                  <div className="risk-progress-fill" style={{ width: `${Math.round((currentIncident.vulnerability.medical / currentIncident.affected) * 100)}%`, background: "#ff5463" }}></div>
+                  <div className="risk-progress-fill" style={{ width: `${Math.round((currentIncident.vulnerability.medical / currentIncident.affected) * 100)}%`, background: "var(--accent-danger)" }}></div>
                 </div>
               </div>
             </div>
@@ -1453,7 +1551,7 @@ function App() {
                 <div className="sim-slider-item">
                   <div className="sim-slider-label">
                     <span>Rainfall Telemetry</span>
-                    <span style={{ color: "#ff5463" }}>{simRainfall} mm</span>
+                    <span style={{ color: "var(--accent-danger)" }}>{simRainfall} mm</span>
                   </div>
                   <input
                     type="range" min="0" max="300" value={simRainfall}
@@ -1465,7 +1563,7 @@ function App() {
                 <div className="sim-slider-item">
                   <div className="sim-slider-label">
                     <span>Flood Risk Index</span>
-                    <span style={{ color: "#ff5463" }}>{simFloodRisk} / 100</span>
+                    <span style={{ color: "var(--accent-danger)" }}>{simFloodRisk} / 100</span>
                   </div>
                   <input
                     type="range" min="0" max="100" value={simFloodRisk}
@@ -1477,7 +1575,7 @@ function App() {
                 <div className="sim-slider-item">
                   <div className="sim-slider-label">
                     <span>Landslide Risk Index</span>
-                    <span style={{ color: "#ffb733" }}>{simLandslideRisk} / 100</span>
+                    <span style={{ color: "var(--accent-warning)" }}>{simLandslideRisk} / 100</span>
                   </div>
                   <input
                     type="range" min="0" max="100" value={simLandslideRisk}
@@ -1489,7 +1587,7 @@ function App() {
                 <div className="sim-slider-item">
                   <div className="sim-slider-label">
                     <span>Road Accessibility</span>
-                    <span style={{ color: "#3896e0" }}>{simRoadAccess}%</span>
+                    <span style={{ color: "var(--accent-info)" }}>{simRoadAccess}%</span>
                   </div>
                   <input
                     type="range" min="0" max="100" value={simRoadAccess}
@@ -1528,7 +1626,7 @@ function App() {
         <div className="panel">
           <div className="panel-title">
             <span>INCIDENT ACTIVITY TIMELINE</span>
-            <span style={{ fontSize: "10px", color: "#627c94" }}>Time-stamped event log</span>
+            <span style={{ fontSize: "10px", color: "var(--text-subtle)" }}>Time-stamped event log</span>
           </div>
           <div className="activity-timeline">
             {activities.map((act, index) => (
@@ -1566,14 +1664,14 @@ function App() {
           )
         }
       >
-        <p style={{ margin: "0 0 10px 0", fontSize: "13px", fontWeight: "700", color: "#ff5463" }}>Incident: {currentIncident.name} ({activeScenario.name})</p>
-        <div style={{ background: "#071524", padding: "12px", borderRadius: "8px", border: "1px solid #10253c", marginBottom: "14px" }}>
+        <p style={{ margin: "0 0 10px 0", fontSize: "13px", fontWeight: "700", color: "var(--accent-danger)" }}>Incident: {currentIncident.name} ({activeScenario.name})</p>
+        <div style={{ background: "var(--bg-card-inner)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border-subtle)", marginBottom: "14px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}><span>Hazard Type:</span><strong>{currentIncident.type}</strong></div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}><span>Composite Hazard Score:</span><strong style={{ color: "#ff5463" }}>{displayHazardScore}/100</strong></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}><span>Composite Hazard Score:</span><strong style={{ color: "var(--accent-danger)" }}>{displayHazardScore}/100</strong></div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}><span>People Affected:</span><strong>{currentIncident.affected.toLocaleString()}</strong></div>
         </div>
         
-        <div style={{ fontWeight: "700", marginBottom: "8px", fontSize: "11px", color: "#7b9bb6" }}>DISPATCH RECIPIENTS:</div>
+        <div style={{ fontWeight: "700", marginBottom: "8px", fontSize: "11px", color: "var(--text-muted)" }}>DISPATCH RECIPIENTS:</div>
         <div className="recipients-checklist" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <label style={{ fontSize: "11px", display: "flex", gap: "8px", alignItems: "center" }}><input type="checkbox" defaultChecked disabled /> District Disaster Management Authority (DDMA)</label>
           <label style={{ fontSize: "11px", display: "flex", gap: "8px", alignItems: "center" }}><input type="checkbox" defaultChecked disabled /> Local Police Department</label>
@@ -1582,7 +1680,7 @@ function App() {
         </div>
 
         {dispatchedTimestamp && (
-          <div style={{ background: "rgba(63, 175, 106, 0.15)", color: "#44d67c", border: "1px solid rgba(63, 175, 106, 0.3)", padding: "10px", borderRadius: "8px", marginTop: "14px", textAlign: "center", fontWeight: "800" }}>
+          <div style={{ background: "var(--accent-success-bg)", color: "var(--accent-success)", border: "1px solid var(--accent-success-border)", padding: "10px", borderRadius: "8px", marginTop: "14px", textAlign: "center", fontWeight: "800" }}>
             🚀 ALERTS DISPATCHED AT {dispatchedTimestamp}
           </div>
         )}
@@ -1606,30 +1704,30 @@ function App() {
       >
         <div style={{ marginBottom: "16px" }}>
           <span className="threat-pill critical">PRIORITY: IMMEDIATE</span>
-          <h3 style={{ margin: "8px 0 4px 0", fontSize: "16px", fontWeight: "800" }}>{currentIncident.name} Evacuation Protocol</h3>
-          <p style={{ margin: "0", color: "#8aa3b8" }}>{currentIncident.affected.toLocaleString()} residents inside danger zone</p>
+          <h3 style={{ margin: "8px 0 4px 0", fontSize: "16px", fontWeight: "800", color: "var(--text-primary)" }}>{currentIncident.name} Evacuation Protocol</h3>
+          <p style={{ margin: "0", color: "var(--text-muted)" }}>{currentIncident.affected.toLocaleString()} residents inside danger zone</p>
         </div>
 
         {evacuationActive ? (
-          <div style={{ background: "rgba(63, 175, 106, 0.15)", color: "#44d67c", border: "1px solid rgba(63, 175, 106, 0.3)", padding: "12px", borderRadius: "8px", textAlign: "center", fontWeight: "800", marginBottom: "16px" }}>
+          <div style={{ background: "var(--accent-success-bg)", color: "var(--accent-success)", border: "1px solid var(--accent-success-border)", padding: "12px", borderRadius: "8px", textAlign: "center", fontWeight: "800", marginBottom: "16px" }}>
             🟢 EVACUATION PROTOCOL ACTIVE
           </div>
         ) : (
-          <div style={{ background: "rgba(212, 142, 34, 0.15)", color: "#ffb733", border: "1px solid rgba(212, 142, 34, 0.3)", padding: "12px", borderRadius: "8px", textAlign: "center", fontWeight: "800", marginBottom: "16px" }}>
+          <div style={{ background: "var(--accent-warning-bg)", color: "var(--accent-warning)", border: "1px solid var(--accent-warning-border)", padding: "12px", borderRadius: "8px", textAlign: "center", fontWeight: "800", marginBottom: "16px" }}>
             ⚠️ EVACUATION PROTOCOL PENDING ACTIVATION
           </div>
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
-          <div style={{ background: "#071524", border: "1px solid #10253c", padding: "12px", borderRadius: "8px" }}>
-            <h4 style={{ margin: "0 0 4px 0", fontSize: "10px", color: "#7b9bb6" }}>Registered for Relocation</h4>
-            <p style={{ margin: 0, fontSize: "18px", fontWeight: "800", color: "#ffffff" }}>{Math.round(currentIncident.affected * 0.32).toLocaleString()}</p>
-            <small style={{ color: "#627c94" }}>32% of affected population</small>
+          <div style={{ background: "var(--bg-card-inner)", border: "1px solid var(--border-subtle)", padding: "12px", borderRadius: "8px" }}>
+            <h4 style={{ margin: "0 0 4px 0", fontSize: "10px", color: "var(--text-muted)" }}>Registered for Relocation</h4>
+            <p style={{ margin: 0, fontSize: "18px", fontWeight: "800", color: "var(--text-primary)" }}>{Math.round(currentIncident.affected * 0.32).toLocaleString()}</p>
+            <small style={{ color: "var(--text-subtle)" }}>32% of affected population</small>
           </div>
-          <div style={{ background: "#071524", border: "1px solid #10253c", padding: "12px", borderRadius: "8px" }}>
-            <h4 style={{ margin: "0 0 4px 0", fontSize: "10px", color: "#7b9bb6" }}>Remaining in Danger Zone</h4>
-            <p style={{ margin: 0, fontSize: "18px", fontWeight: "800", color: "#ff5463" }}>{(currentIncident.affected - Math.round(currentIncident.affected * 0.32)).toLocaleString()}</p>
-            <small style={{ color: "#627c94" }}>Requires urgent transport</small>
+          <div style={{ background: "var(--bg-card-inner)", border: "1px solid var(--border-subtle)", padding: "12px", borderRadius: "8px" }}>
+            <h4 style={{ margin: "0 0 4px 0", fontSize: "10px", color: "var(--text-muted)" }}>Remaining in Danger Zone</h4>
+            <p style={{ margin: 0, fontSize: "18px", fontWeight: "800", color: "var(--accent-danger)" }}>{(currentIncident.affected - Math.round(currentIncident.affected * 0.32)).toLocaleString()}</p>
+            <small style={{ color: "var(--text-subtle)" }}>Requires urgent transport</small>
           </div>
         </div>
 
@@ -1647,7 +1745,7 @@ function App() {
         title="NGO & Volunteer Team Coordination"
         footer={<button className="secondary-btn" onClick={() => setActiveModal(null)}>Close</button>}
       >
-        <p style={{ marginBottom: "16px", color: "#8aa3b8" }}>Deploy emergency response units to {currentIncident.name}:</p>
+        <p style={{ marginBottom: "16px", color: "var(--text-muted)" }}>Deploy emergency response units to {currentIncident.name}:</p>
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {[
             { name: "Medical Volunteers", desc: "24 personnel standby", val: "Medical Volunteers" },
@@ -1657,15 +1755,15 @@ function App() {
           ].map((group) => {
             const isDeployed = deployedNgos.includes(group.val);
             return (
-              <div key={group.val} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#071524", border: "1px solid #10253c", borderRadius: "8px", padding: "12px" }}>
+              <div key={group.val} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-card-inner)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "12px" }}>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: "12px", color: "#ffffff" }}>{group.name}</h4>
-                  <span style={{ fontSize: "10px", color: "#7b9bb6" }}>{group.desc}</span>
+                  <h4 style={{ margin: 0, fontSize: "12px", color: "var(--text-primary)" }}>{group.name}</h4>
+                  <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{group.desc}</span>
                 </div>
                 {isDeployed ? (
-                  <span style={{ background: "rgba(63, 175, 106, 0.15)", color: "#44d67c", border: "1px solid rgba(63, 175, 106, 0.3)", padding: "4px 10px", borderRadius: "4px", fontSize: "10px", fontWeight: "800" }}>DEPLOYED</span>
+                  <span style={{ background: "var(--accent-success-bg)", color: "var(--accent-success)", border: "1px solid var(--accent-success-border)", padding: "4px 10px", borderRadius: "4px", fontSize: "10px", fontWeight: "800" }}>DEPLOYED</span>
                 ) : (
-                  <button style={{ background: "#3896e0", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "10px", fontWeight: "700", cursor: "pointer" }} onClick={() => deployNgo(group.val)}>Deploy</button>
+                  <button style={{ background: "var(--accent-info)", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "10px", fontWeight: "700", cursor: "pointer" }} onClick={() => deployNgo(group.val)}>Deploy</button>
                 )}
               </div>
             );
@@ -1680,10 +1778,10 @@ function App() {
         title="Verified Relief Needs & Requests"
         footer={<button className="secondary-btn" onClick={() => setActiveModal(null)}>Close</button>}
       >
-        <p style={{ marginBottom: "12px", color: "#8aa3b8" }}>Critical resource requirements for {currentIncident.name}:</p>
+        <p style={{ marginBottom: "12px", color: "var(--text-muted)" }}>Critical resource requirements for {currentIncident.name}:</p>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
           <thead>
-            <tr style={{ background: "#071524", color: "#7b9bb6", borderBottom: "1px solid #10253c" }}>
+            <tr style={{ background: "var(--bg-card-inner)", color: "var(--text-muted)", borderBottom: "1px solid var(--border-subtle)" }}>
               <th style={{ padding: "8px", textAlign: "left" }}>Need Item</th>
               <th style={{ padding: "8px", textAlign: "left" }}>Quantity</th>
               <th style={{ padding: "8px", textAlign: "left" }}>Priority</th>
@@ -1692,23 +1790,23 @@ function App() {
           </thead>
           <tbody>
             {[
-              { name: "Drinking Water", qty: "2,500 L", priority: "HIGH", color: "#ffb733" },
-              { name: "Food Ration Kits", qty: "1,100 kits", priority: "HIGH", color: "#ffb733" },
-              { name: "Blankets", qty: "620 units", priority: "MEDIUM", color: "#3896e0" },
-              { name: "Medical First-Aid Kits", qty: "180 units", priority: "CRITICAL", color: "#ff5463" },
-              { name: "Temporary Tents", qty: "420 units", priority: "HIGH", color: "#ffb733" }
+              { name: "Drinking Water", qty: "2,500 L", priority: "HIGH", color: "var(--accent-warning)" },
+              { name: "Food Ration Kits", qty: "1,100 kits", priority: "HIGH", color: "var(--accent-warning)" },
+              { name: "Blankets", qty: "620 units", priority: "MEDIUM", color: "var(--accent-info)" },
+              { name: "Medical First-Aid Kits", qty: "180 units", priority: "CRITICAL", color: "var(--accent-danger)" },
+              { name: "Temporary Tents", qty: "420 units", priority: "HIGH", color: "var(--accent-warning)" }
             ].map((item) => {
               const isCoordinated = coordinatedNeeds.includes(item.name);
               return (
-                <tr key={item.name} style={{ borderBottom: "1px solid #10253c" }}>
-                  <td style={{ padding: "10px 8px", fontWeight: "700", color: "#ffffff" }}>{item.name}</td>
+                <tr key={item.name} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                  <td style={{ padding: "10px 8px", fontWeight: "700", color: "var(--text-primary)" }}>{item.name}</td>
                   <td style={{ padding: "10px 8px" }}>{item.qty}</td>
                   <td style={{ padding: "10px 8px" }}><span style={{ color: item.color, fontWeight: "800", fontSize: "9px" }}>{item.priority}</span></td>
                   <td style={{ padding: "10px 8px" }}>
                     {isCoordinated ? (
-                      <span style={{ color: "#44d67c", fontWeight: "800" }}>COORDINATED</span>
+                      <span style={{ color: "var(--accent-success)", fontWeight: "800" }}>COORDINATED</span>
                     ) : (
-                      <button style={{ background: "#0b2036", color: "#8aa3b8", border: "1px solid #1c3e63", padding: "4px 8px", borderRadius: "4px", fontSize: "9.5px", cursor: "pointer" }} onClick={() => coordinateNeed(item.name)}>Mark Coordinated</button>
+                      <button style={{ background: "var(--btn-secondary-bg)", color: "var(--btn-secondary-text)", border: "1px solid var(--btn-secondary-border)", padding: "4px 8px", borderRadius: "4px", fontSize: "9.5px", cursor: "pointer" }} onClick={() => coordinateNeed(item.name)}>Mark Coordinated</button>
                     )}
                   </td>
                 </tr>
@@ -1725,22 +1823,22 @@ function App() {
         title="MANUAL SAFE SITE OVERRIDE"
         footer={<button className="secondary-btn" onClick={() => setActiveModal(null)}>Close</button>}
       >
-        <p style={{ color: "#8aa3b8", marginBottom: "14px" }}>Select an alternative safe site destination for {currentIncident.name}:</p>
+        <p style={{ color: "var(--text-muted)", marginBottom: "14px" }}>Select an alternative safe site destination for {currentIncident.name}:</p>
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {Object.keys(activeScenario.safeSites).map((siteKey) => {
             const site = activeScenario.safeSites[siteKey];
             const isCurrent = recommendedSite.name === site.name;
             return (
-              <div key={site.name} style={{ background: isCurrent ? "rgba(63, 175, 106, 0.1)" : "#071524", border: `1px solid ${isCurrent ? "rgba(63, 175, 106, 0.3)" : "#10253c"}`, borderRadius: "8px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div key={site.name} style={{ background: isCurrent ? "var(--accent-success-bg)" : "var(--bg-card-inner)", border: `1px solid ${isCurrent ? "var(--accent-success-border)" : "var(--border-subtle)"}`, borderRadius: "8px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <h4 style={{ margin: "0 0 4px 0", fontSize: "13px", color: "#ffffff" }}>{site.name}</h4>
-                  <div style={{ fontSize: "10px", color: "#7b9bb6" }}>Distance: {site.distance} • Capacity: {site.capacity} • Available: {site.available}</div>
+                  <h4 style={{ margin: "0 0 4px 0", fontSize: "13px", color: "var(--text-primary)" }}>{site.name}</h4>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>Distance: {site.distance} • Capacity: {site.capacity} • Available: {site.available}</div>
                 </div>
                 {isCurrent ? (
-                  <span style={{ fontSize: "10px", fontWeight: "800", color: "#44d67c", background: "rgba(63, 175, 106, 0.15)", padding: "4px 8px", borderRadius: "4px" }}>SELECTED</span>
+                  <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--accent-success)", background: "var(--accent-success-bg)", padding: "4px 8px", borderRadius: "4px" }}>SELECTED</span>
                 ) : (
                   <button
-                    style={{ background: "#3896e0", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "10px", fontWeight: "700", cursor: "pointer" }}
+                    style={{ background: "var(--accent-info)", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "10px", fontWeight: "700", cursor: "pointer" }}
                     onClick={() => {
                       setSelectedSiteName(site.name);
                       addActivityLog(`Safe site override selected: ${site.name}`, "info");
@@ -1790,7 +1888,7 @@ function ToastContainer({ toasts, onClose }) {
   return (
     <div className="toast-container">
       {toasts.map((toast) => (
-        <div key={toast.id} className="toast" role="alert" style={{ borderLeftColor: toast.type === "info" ? "#3896e0" : "#44d67c" }}>
+        <div key={toast.id} className="toast" role="alert" style={{ borderLeftColor: toast.type === "info" ? "var(--accent-info)" : "var(--accent-success)" }}>
           <span>{toast.message}</span>
           <button className="toast-close" onClick={() => onClose(toast.id)} aria-label="Dismiss message">&times;</button>
         </div>
