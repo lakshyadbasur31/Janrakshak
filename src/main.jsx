@@ -1,11 +1,19 @@
-import React, {useState, useEffect} from "react";
-import {createRoot} from "react-dom/client";
-import {MapContainer, TileLayer, Circle, Marker, Popup, Polygon, Polyline, useMap} from "react-leaflet";
+import React, { useState, useEffect } from "react";
+import { createRoot } from "react-dom/client";
+import { MapContainer, TileLayer, Circle, Marker, Popup, Polygon, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./styles.css";
 
-// --- 5. SCENARIO DATA MODEL SYSTEMS ---
+// SVG Image Fallbacks for Disaster Cards
+const defaultImages = {
+  flood: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='800' height='600' fill='%23051829'/><path d='M0 450 Q 200 380 400 450 T 800 450 L 800 600 L 0 600 Z' fill='%23194a7a'/><path d='M0 500 Q 200 450 400 500 T 800 500 L 800 600 L 0 600 Z' fill='%232264a3'/><text x='400' y='280' font-family='sans-serif' font-size='32' font-weight='bold' fill='%233896e0' text-anchor='middle'>FLOOD RESCUE INTELLIGENCE</text></svg>",
+  landslide: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='800' height='600' fill='%23051829'/><polygon points='0,600 300,200 500,450 800,150 800,600' fill='%231f3c5a'/><polygon points='150,600 450,300 800,600' fill='%232b537d'/><text x='400' y='280' font-family='sans-serif' font-size='32' font-weight='bold' fill='%23ffb733' text-anchor='middle'>LANDSLIDE RISK ANALYSIS</text></svg>",
+  urban: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='800' height='600' fill='%23051829'/><rect x='100' y='250' width='120' height='350' fill='%23142e4a'/><rect x='260' y='180' width='140' height='420' fill='%231c4066'/><rect x='440' y='300' width='110' height='300' fill='%23142e4a'/><rect x='580' y='220' width='130' height='380' fill='%231c4066'/><text x='400' y='120' font-family='sans-serif' font-size='32' font-weight='bold' fill='%233896e0' text-anchor='middle'>URBAN FLOODING MONITORING</text></svg>",
+  responders: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='800' height='600' fill='%23051829'/><circle cx='400' cy='300' r='180' fill='none' stroke='%2344d67c' stroke-width='4'/><circle cx='400' cy='300' r='100' fill='none' stroke='%2344d67c' stroke-width='2' stroke-dasharray='8,8'/><text x='400' y='308' font-family='sans-serif' font-size='32' font-weight='bold' fill='%2344d67c' text-anchor='middle'>EMERGENCY RESPONDERS</text></svg>"
+};
+
+// --- 1. RICH SCENARIO DATA ENGINE ---
 const scenariosData = {
   "Flood — Mysuru": {
     name: "Flood — Mysuru",
@@ -25,16 +33,19 @@ const scenariosData = {
         landslideRisk: 41,
         rainfall: 187,
         roadAccess: "LIMITED",
+        roadAccessRating: 40,
         center: [12.305, 76.655],
         recommendedSite: "Safe Site B",
-        confidence: 94,
-        explanation: "High rainfall combined with steep terrain poses active landslide threats, blockading the main highway. Relocating to Site B avoids vulnerable slip zones.",
+        confidence: 96.4,
+        explanation: "High flood runoff combined with steep slope saturation poses active landslide threats, blockading the main highway. Safe Site B provides elevated structural refuge away from slip paths.",
         whySite: [
-          "Low hazard exposure",
-          "Sufficient capacity",
-          "Good road access",
-          "Near medical facility"
-        ]
+          "Outside primary hazard zone",
+          "Capacity sufficient (2,880 available)",
+          "Road access clear",
+          "Medical support nearby",
+          "Water availability verified"
+        ],
+        vulnerability: { children: 412, elderly: 286, disability: 74, medical: 118 }
       },
       "Zone 7": {
         name: "Zone 7",
@@ -48,16 +59,19 @@ const scenariosData = {
         landslideRisk: 15,
         rainfall: 142,
         roadAccess: "MODERATE",
+        roadAccessRating: 60,
         center: [12.330, 76.665],
         recommendedSite: "Safe Site C",
-        confidence: 89,
-        explanation: "Low-lying urban areas are experiencing active drain backflow. Site C offers immediate shelter on elevated city structures.",
+        confidence: 91.2,
+        explanation: "Low-lying urban sectors experiencing backflow from overflowing stormwater channels. Site C sits on high ground with immediate municipal supply lines.",
         whySite: [
-          "Elevated terrain",
-          "High road accessibility",
-          "Equipped medical bay",
-          "Established supply line"
-        ]
+          "Elevated city terrain",
+          "Clear arterial road access",
+          "Equipped first-aid medical bay",
+          "Established food supply line",
+          "Backup generator available"
+        ],
+        vulnerability: { children: 340, elderly: 210, disability: 52, medical: 85 }
       },
       "Sector 4": {
         name: "Sector 4",
@@ -71,37 +85,48 @@ const scenariosData = {
         landslideRisk: 5,
         rainfall: 25,
         roadAccess: "GOOD",
-        confidence: 91,
-        explanation: "Industrial explosion hazard buffer requires moving citizens clear of chemical gas plume path. Site D sits upwind of the containment area.",
+        roadAccessRating: 85,
+        center: [12.290, 76.640],
+        recommendedSite: "Safe Site D",
+        confidence: 88.5,
+        explanation: "Industrial chemical containment boundary expanding upwind. Site D sits clear of airborne smoke plume paths with open evacuation access.",
         whySite: [
-          "Outside chemical range",
-          "Ample emergency housing",
-          "Rapid dispatch connection",
-          "Direct backup generator"
-        ]
+          "Upwind of chemical containment zone",
+          "Ample emergency housing units",
+          "Direct dispatch connection",
+          "High capacity water storage",
+          "Dedicated medical triage tent"
+        ],
+        vulnerability: { children: 180, elderly: 110, disability: 28, medical: 42 }
       }
     },
     hazardZones: [
-      { incident: "Village A", type: "polygon", severity: "CRITICAL", positions: [[12.31, 76.63], [12.34, 76.66], [12.31, 76.69], [12.28, 76.67], [12.29, 76.63]], color: "#dc4653" },
-      { incident: "Village A", type: "circle", severity: "CRITICAL", center: [12.305, 76.655], radius: 1100, color: "#dc4653" },
-      { incident: "Zone 7", type: "polygon", severity: "HIGH", positions: [[12.32, 76.64], [12.34, 76.68], [12.34, 76.65]], color: "#d39422" },
-      { incident: "Zone 7", type: "circle", severity: "HIGH", center: [12.330, 76.665], radius: 800, color: "#d39422" },
-      { incident: "Sector 4", type: "circle", severity: "MODERATE", center: [12.290, 76.640], radius: 700, color: "#1f5a8a" }
+      { incident: "Village A", type: "polygon", severity: "CRITICAL", positions: [[12.31, 76.63], [12.34, 76.66], [12.31, 76.69], [12.28, 76.67], [12.29, 76.63]], color: "#ff5463" },
+      { incident: "Village A", type: "circle", severity: "CRITICAL", center: [12.305, 76.655], radius: 1100, color: "#ff5463" },
+      { incident: "Zone 7", type: "polygon", severity: "HIGH", positions: [[12.32, 76.64], [12.34, 76.68], [12.34, 76.65]], color: "#ffb733" },
+      { incident: "Zone 7", type: "circle", severity: "HIGH", center: [12.330, 76.665], radius: 800, color: "#ffb733" },
+      { incident: "Sector 4", type: "circle", severity: "MODERATE", center: [12.290, 76.640], radius: 700, color: "#3896e0" }
     ],
     safeSites: {
-      "Safe Site B": { name: "Safe Site B", center: [12.322, 76.684], capacity: 3500, occupied: 620, available: 2880, distance: "4.2 km", hazardExposure: "LOW", roadAccess: "GOOD" },
-      "Safe Site C": { name: "Safe Site C", center: [12.345, 76.658], capacity: 2500, occupied: 800, available: 1700, distance: "3.1 km", hazardExposure: "LOW", roadAccess: "GOOD" },
-      "Safe Site D": { name: "Safe Site D", center: [12.282, 76.615], capacity: 1800, occupied: 450, available: 1350, distance: "2.8 km", hazardExposure: "MODERATE", roadAccess: "LIMITED" }
+      "Safe Site B": { name: "Safe Site B", center: [12.322, 76.684], capacity: 3500, occupied: 620, available: 2880, distance: "4.2 km", hazardExposure: "LOW", roadAccess: "GOOD", medicalAccess: "YES", waterStatus: "VERIFIED" },
+      "Safe Site C": { name: "Safe Site C", center: [12.345, 76.658], capacity: 2500, occupied: 800, available: 1700, distance: "3.1 km", hazardExposure: "LOW", roadAccess: "GOOD", medicalAccess: "YES", waterStatus: "VERIFIED" },
+      "Safe Site D": { name: "Safe Site D", center: [12.282, 76.615], capacity: 1800, occupied: 450, available: 1350, distance: "2.8 km", hazardExposure: "MODERATE", roadAccess: "LIMITED", medicalAccess: "LIMITED", waterStatus: "PENDING" }
     },
     infrastructure: [
-      { name: "District Hospital", center: [12.312, 76.671], icon: "🏥", abbrev: "H" },
-      { name: "Police Station", center: [12.301, 76.662], icon: "👮", abbrev: "P" },
-      { name: "Fire & Emergency Station", center: [12.325, 76.645], icon: "🚒", abbrev: "F" },
-      { name: "Community Health Centre", center: [12.296, 76.635], icon: "🏥", abbrev: "C" }
+      { name: "District Hospital", category: "Hospital", center: [12.312, 76.671], icon: "🏥", abbrev: "H" },
+      { name: "Mysuru North Police Station", category: "Police", center: [12.301, 76.662], icon: "👮", abbrev: "P" },
+      { name: "Fire & Emergency Command", category: "Fire", center: [12.325, 76.645], icon: "🚒", abbrev: "F" },
+      { name: "Govt Model School", category: "School", center: [12.298, 76.650], icon: "🏫", abbrev: "S" }
     ],
     evacuationRoutes: [
-      { name: "Village A → Safe Site B", incident: "Village A", positions: [[12.305, 76.655], [12.310, 76.668], [12.322, 76.684]], distance: "4.2 km", time: "11 min", status: "LIMITED ACCESS", congestion: "MODERATE" },
-      { name: "Zone 7 → Safe Site C", incident: "Zone 7", positions: [[12.330, 76.665], [12.340, 76.660], [12.345, 76.658]], distance: "3.1 km", time: "8 min", status: "GOOD ACCESS", congestion: "LOW" }
+      { name: "Route R-04 (Village A → Site B)", incident: "Village A", positions: [[12.305, 76.655], [12.310, 76.668], [12.322, 76.684]], distance: "4.2 km", time: "11 min", status: "CLEAR", congestion: "LOW", hazardExposure: "LOW" },
+      { name: "Route R-07 (Zone 7 → Site C)", incident: "Zone 7", positions: [[12.330, 76.665], [12.340, 76.660], [12.345, 76.658]], distance: "3.1 km", time: "8 min", status: "CLEAR", congestion: "LOW", hazardExposure: "LOW" }
+    ],
+    initialTimeline: [
+      { time: "18:42", text: "Hazard threshold exceeded at Mysuru rainfall sensor.", type: "critical" },
+      { time: "18:43", text: "Incident classified CRITICAL for Village A.", type: "critical" },
+      { time: "18:44", text: "Vulnerability assessment completed (2,140 residents affected).", type: "info" },
+      { time: "18:45", text: "AI recommended relocation to Safe Site B (Confidence 96.4%).", type: "info" }
     ]
   },
   "Urban Flood — Bengaluru": {
@@ -122,15 +147,19 @@ const scenariosData = {
         landslideRisk: 5,
         rainfall: 210,
         roadAccess: "LIMITED",
+        roadAccessRating: 35,
         center: [12.935, 77.685],
         recommendedSite: "Outer Ring Road Camp",
-        confidence: 96,
-        explanation: "Bellandur lake backflow and heavy urban runoff has flooded roads up to 3 feet. Immediate relocation of ground floor apartments is advised.",
+        confidence: 95.8,
+        explanation: "Bellandur lake backflow and heavy urban runoff flooded ground level accesses up to 3 feet. Immediate relocation of ground floor residents required.",
         whySite: [
-          "Located on elevated highway bypass",
-          "Dry conditions verified",
-          "High capacity community center"
-        ]
+          "Elevated highway bypass location",
+          "Dry conditions verified by field agents",
+          "High capacity community facility",
+          "Direct ambulance access",
+          "Emergency ration distribution hub"
+        ],
+        vulnerability: { children: 650, elderly: 480, disability: 110, medical: 190 }
       },
       "HSR Sector 6": {
         name: "HSR Sector 6",
@@ -144,32 +173,42 @@ const scenariosData = {
         landslideRisk: 2,
         rainfall: 175,
         roadAccess: "MODERATE",
+        roadAccessRating: 55,
         center: [12.915, 77.645],
         recommendedSite: "Stadium Shelter",
-        confidence: 88,
-        explanation: "Main arterial drains are choked. Relocating street-level residents is recommended.",
+        confidence: 90.1,
+        explanation: "Arterial storm drains choked. Relocating ground-level residents to elevated stadium grounds recommended.",
         whySite: [
-          "Large dry open stadium grounds",
-          "Direct access via double-road",
-          "Medical first-aid units available"
-        ]
+          "Spacious dry stadium complex",
+          "Double-lane road access",
+          "Medical first-aid units available",
+          "Dedicated power grid backup"
+        ],
+        vulnerability: { children: 220, elderly: 160, disability: 35, medical: 60 }
       }
     },
     hazardZones: [
-      { incident: "Bellandur Layout", type: "circle", severity: "CRITICAL", center: [12.935, 77.685], radius: 1200, color: "#dc4653" },
-      { incident: "HSR Sector 6", type: "circle", severity: "HIGH", center: [12.915, 77.645], radius: 800, color: "#d39422" }
+      { incident: "Bellandur Layout", type: "circle", severity: "CRITICAL", center: [12.935, 77.685], radius: 1200, color: "#ff5463" },
+      { incident: "HSR Sector 6", type: "circle", severity: "HIGH", center: [12.915, 77.645], radius: 800, color: "#ffb733" }
     ],
     safeSites: {
-      "Outer Ring Road Camp": { name: "Outer Ring Road Camp", center: [12.952, 77.702], capacity: 4000, occupied: 1200, available: 2800, distance: "2.5 km", hazardExposure: "LOW", roadAccess: "GOOD" },
-      "Stadium Shelter": { name: "Stadium Shelter", center: [12.910, 77.625], capacity: 3000, occupied: 500, available: 2500, distance: "3.2 km", hazardExposure: "LOW", roadAccess: "GOOD" }
+      "Outer Ring Road Camp": { name: "Outer Ring Road Camp", center: [12.952, 77.702], capacity: 4000, occupied: 1200, available: 2800, distance: "2.5 km", hazardExposure: "LOW", roadAccess: "GOOD", medicalAccess: "YES", waterStatus: "VERIFIED" },
+      "Stadium Shelter": { name: "Stadium Shelter", center: [12.910, 77.625], capacity: 3000, occupied: 500, available: 2500, distance: "3.2 km", hazardExposure: "LOW", roadAccess: "GOOD", medicalAccess: "YES", waterStatus: "VERIFIED" }
     },
     infrastructure: [
-      { name: "Sakra Hospital", center: [12.932, 77.698], icon: "🏥", abbrev: "H" },
-      { name: "HSR Police Station", center: [12.911, 77.640], icon: "👮", abbrev: "P" }
+      { name: "Sakra World Hospital", category: "Hospital", center: [12.932, 77.698], icon: "🏥", abbrev: "H" },
+      { name: "HSR Layout Police Station", category: "Police", center: [12.911, 77.640], icon: "👮", abbrev: "P" },
+      { name: "Bellandur Fire Unit", category: "Fire", center: [12.940, 77.675], icon: "🚒", abbrev: "F" },
+      { name: "National Public School", category: "School", center: [12.925, 77.650], icon: "🏫", abbrev: "S" }
     ],
     evacuationRoutes: [
-      { name: "Bellandur Layout → ORR Camp", incident: "Bellandur Layout", positions: [[12.935, 77.685], [12.945, 77.695], [12.952, 77.702]], distance: "2.5 km", time: "10 min", status: "CLEAR", congestion: "MODERATE" },
-      { name: "HSR Sector 6 → Stadium", incident: "HSR Sector 6", positions: [[12.915, 77.645], [12.912, 77.632], [12.910, 77.625]], distance: "3.2 km", time: "12 min", status: "CLEAR", congestion: "LOW" }
+      { name: "Route B-01 (Bellandur → ORR Camp)", incident: "Bellandur Layout", positions: [[12.935, 77.685], [12.945, 77.695], [12.952, 77.702]], distance: "2.5 km", time: "10 min", status: "CLEAR", congestion: "MODERATE", hazardExposure: "LOW" },
+      { name: "Route B-02 (HSR → Stadium)", incident: "HSR Sector 6", positions: [[12.915, 77.645], [12.912, 77.632], [12.910, 77.625]], distance: "3.2 km", time: "12 min", status: "CLEAR", congestion: "LOW", hazardExposure: "LOW" }
+    ],
+    initialTimeline: [
+      { time: "17:10", text: "Bellandur Lake water sensor reached threshold 2.8m.", type: "critical" },
+      { time: "17:15", text: "Urban flood alert dispatched for Bellandur Layout.", type: "critical" },
+      { time: "17:20", text: "AI recommendation generated for Outer Ring Road Camp.", type: "info" }
     ]
   },
   "Landslide — Kodagu": {
@@ -190,33 +229,44 @@ const scenariosData = {
         landslideRisk: 98,
         rainfall: 280,
         roadAccess: "LIMITED",
+        roadAccessRating: 25,
         center: [12.424, 75.738],
         recommendedSite: "Madikeri Town Hall",
-        confidence: 97,
-        explanation: "Unprecedented slope movement detected by soil sensors. Heavy rainfall has fully washed out route joints.",
+        confidence: 97.2,
+        explanation: "Unprecedented hill slope shear stress registered. Soil moisture saturation at 98%. Immediate evacuation of hillside settlements required.",
         whySite: [
-          "Safe structural foundation on rock bed",
-          "Access to medical hubs",
-          "Ample dry supply stores"
-        ]
+          "Solid rock bed foundation",
+          "Clear of slope debris trajectory",
+          "Direct access to District Hospital",
+          "High capacity shelter hall",
+          "Equipped satellite communications"
+        ],
+        vulnerability: { children: 160, elderly: 130, disability: 30, medical: 45 }
       }
     },
     hazardZones: [
-      { incident: "Makkandur Slip", type: "polygon", severity: "CRITICAL", positions: [[12.41, 75.72], [12.44, 75.75], [12.42, 75.76], [12.41, 75.72]], color: "#dc4653" }
+      { incident: "Makkandur Slip", type: "polygon", severity: "CRITICAL", positions: [[12.41, 75.72], [12.44, 75.75], [12.42, 75.76], [12.41, 75.72]], color: "#ff5463" }
     ],
     safeSites: {
-      "Madikeri Town Hall": { name: "Madikeri Town Hall", center: [12.420, 75.742], capacity: 1500, occupied: 300, available: 1200, distance: "1.8 km", hazardExposure: "LOW", roadAccess: "GOOD" }
+      "Madikeri Town Hall": { name: "Madikeri Town Hall", center: [12.420, 75.742], capacity: 1500, occupied: 300, available: 1200, distance: "1.8 km", hazardExposure: "LOW", roadAccess: "GOOD", medicalAccess: "YES", waterStatus: "VERIFIED" }
     },
     infrastructure: [
-      { name: "General Hospital Madikeri", center: [12.422, 75.740], icon: "🏥", abbrev: "H" }
+      { name: "Madikeri General Hospital", category: "Hospital", center: [12.422, 75.740], icon: "🏥", abbrev: "H" },
+      { name: "Town Police Station", category: "Police", center: [12.418, 75.735], icon: "👮", abbrev: "P" },
+      { name: "Kodagu Rescue Base", category: "Fire", center: [12.425, 75.745], icon: "🚒", abbrev: "F" }
     ],
     evacuationRoutes: [
-      { name: "Makkandur Slip → Town Hall", incident: "Makkandur Slip", positions: [[12.424, 75.738], [12.420, 75.742]], distance: "1.8 km", time: "9 min", status: "CLEAR", congestion: "LOW" }
+      { name: "Route K-01 (Makkandur → Town Hall)", incident: "Makkandur Slip", positions: [[12.424, 75.738], [12.420, 75.742]], distance: "1.8 km", time: "9 min", status: "CLEAR", congestion: "LOW", hazardExposure: "LOW" }
+    ],
+    initialTimeline: [
+      { time: "16:05", text: "Soil saturation sensor triggered 98% warning.", type: "critical" },
+      { time: "16:10", text: "Debris slip detected near Makkandur village road.", type: "critical" },
+      { time: "16:15", text: "Madikeri Town Hall designated primary safe site.", type: "info" }
     ]
   },
-  "Industrial Fire — Bengaluru": {
-    name: "Industrial Fire — Bengaluru",
-    locationName: "Bengaluru (Peenya), Karnataka",
+  "Industrial Fire — Peenya": {
+    name: "Industrial Fire — Peenya",
+    locationName: "Peenya, Bengaluru, Karnataka",
     mapCenter: [13.031, 77.518],
     mapZoom: 13,
     incidents: {
@@ -232,31 +282,43 @@ const scenariosData = {
         landslideRisk: 1,
         rainfall: 0,
         roadAccess: "GOOD",
-        confidence: 93,
-        explanation: "Thermal radiation buffer expanded to 800m. Toxic chlorine gas plume is spreading downwind.",
+        roadAccessRating: 80,
+        center: [13.031, 77.518],
+        recommendedSite: "Jnanabharathi Camp",
+        confidence: 94.5,
+        explanation: "Toxic chemical plume spreading downwind. Sited upwind camp chosen to prevent inhalation hazards.",
         whySite: [
-          "Sited safely upwind of industrial sector",
-          "Spacious medical field hospital setup",
-          "Dedicated transport terminal link"
-        ]
+          "Safely upwind of industrial plume",
+          "Large capacity open grounds",
+          "Medical field triage ready",
+          "Direct highway connectivity"
+        ],
+        vulnerability: { children: 820, elderly: 540, disability: 140, medical: 230 }
       }
     },
     hazardZones: [
-      { incident: "Peenya Phase II", type: "circle", severity: "CRITICAL", center: [13.031, 77.518], radius: 1000, color: "#dc4653" }
+      { incident: "Peenya Phase II", type: "circle", severity: "CRITICAL", center: [13.031, 77.518], radius: 1000, color: "#ff5463" }
     ],
     safeSites: {
-      "Jnanabharathi Camp": { name: "Jnanabharathi Camp", center: [12.980, 77.502], capacity: 5000, occupied: 1500, available: 3500, distance: "6.2 km", hazardExposure: "LOW", roadAccess: "GOOD" }
+      "Jnanabharathi Camp": { name: "Jnanabharathi Camp", center: [12.980, 77.502], capacity: 5000, occupied: 1500, available: 3500, distance: "6.2 km", hazardExposure: "LOW", roadAccess: "GOOD", medicalAccess: "YES", waterStatus: "VERIFIED" }
     },
     infrastructure: [
-      { name: "Fortis Hospital", center: [13.001, 77.545], icon: "🏥", abbrev: "H" }
+      { name: "Fortis Hospital Peenya", category: "Hospital", center: [13.001, 77.545], icon: "🏥", abbrev: "H" },
+      { name: "Peenya Police Command", category: "Police", center: [13.025, 77.525], icon: "👮", abbrev: "P" },
+      { name: "Hazmat Fire Unit", category: "Fire", center: [13.035, 77.510], icon: "🚒", abbrev: "F" }
     ],
     evacuationRoutes: [
-      { name: "Peenya Phase II → JB Camp", incident: "Peenya Phase II", positions: [[13.031, 77.518], [13.001, 77.508], [12.980, 77.502]], distance: "6.2 km", time: "18 min", status: "CLEAR", congestion: "MODERATE" }
+      { name: "Route P-01 (Peenya → Jnanabharathi)", incident: "Peenya Phase II", positions: [[13.031, 77.518], [13.001, 77.508], [12.980, 77.502]], distance: "6.2 km", time: "18 min", status: "CLEAR", congestion: "MODERATE", hazardExposure: "LOW" }
+    ],
+    initialTimeline: [
+      { time: "15:20", text: "Chemical storage pressure threshold breach detected.", type: "critical" },
+      { time: "15:25", text: "Industrial hazmat alarm triggered in Peenya Phase II.", type: "critical" },
+      { time: "15:30", text: "Jnanabharathi Camp initialized as upwind shelter.", type: "info" }
     ]
   },
-  "Cyclone — Coastal Karnataka": {
-    name: "Cyclone — Coastal Karnataka",
-    locationName: "Udupi, Karnataka",
+  "Cyclone — Udupi": {
+    name: "Cyclone — Udupi",
+    locationName: "Udupi, Coastal Karnataka",
     mapCenter: [13.342, 74.685],
     mapZoom: 13,
     incidents: {
@@ -272,31 +334,43 @@ const scenariosData = {
         landslideRisk: 5,
         rainfall: 245,
         roadAccess: "LIMITED",
-        confidence: 95,
-        explanation: "Cyclone storm surge is pushing seawater 2km inland. Maritime alert levels are critical.",
+        roadAccessRating: 30,
+        center: [13.342, 74.685],
+        recommendedSite: "Udupi Sports Complex",
+        confidence: 96.8,
+        explanation: "Severe cyclone storm surge pushing 2.5m seawater inland. Evacuate all low-lying coastal structures immediately.",
         whySite: [
-          "Located 5km inland behind coastal forest buffer",
-          "Equipped with backup power and storm shutters",
-          "Dedicated emergency food stockpile"
-        ]
+          "Inland elevated terrain (6.5 km from coast)",
+          "Concrete storm-proof construction",
+          "Dedicated emergency food store",
+          "Generator & satellite backup"
+        ],
+        vulnerability: { children: 580, elderly: 420, disability: 95, medical: 160 }
       }
     },
     hazardZones: [
-      { incident: "Malpe Harbour", type: "polygon", severity: "CRITICAL", positions: [[13.33, 74.67], [13.36, 74.67], [13.35, 74.70], [13.32, 74.69]], color: "#dc4653" }
+      { incident: "Malpe Harbour", type: "polygon", severity: "CRITICAL", positions: [[13.33, 74.67], [13.36, 74.67], [13.35, 74.70], [13.32, 74.69]], color: "#ff5463" }
     ],
     safeSites: {
-      "Udupi Sports Complex": { name: "Udupi Sports Complex", center: [13.345, 74.745], capacity: 4000, occupied: 1100, available: 2900, distance: "6.5 km", hazardExposure: "LOW", roadAccess: "GOOD" }
+      "Udupi Sports Complex": { name: "Udupi Sports Complex", center: [13.345, 74.745], capacity: 4000, occupied: 1100, available: 2900, distance: "6.5 km", hazardExposure: "LOW", roadAccess: "GOOD", medicalAccess: "YES", waterStatus: "VERIFIED" }
     },
     infrastructure: [
-      { name: "Adarsha Hospital Udupi", center: [13.343, 74.749], icon: "🏥", abbrev: "H" }
+      { name: "Adarsha Hospital Udupi", category: "Hospital", center: [13.343, 74.749], icon: "🏥", abbrev: "H" },
+      { name: "Malpe Marine Police", category: "Police", center: [13.340, 74.690], icon: "👮", abbrev: "P" },
+      { name: "Coastal Rescue Unit", category: "Fire", center: [13.350, 74.700], icon: "🚒", abbrev: "F" }
     ],
     evacuationRoutes: [
-      { name: "Malpe Harbour → Sports Complex", incident: "Malpe Harbour", positions: [[13.342, 74.685], [13.345, 74.745]], distance: "6.5 km", time: "14 min", status: "CLEAR", congestion: "MODERATE" }
+      { name: "Route C-01 (Malpe → Sports Complex)", incident: "Malpe Harbour", positions: [[13.342, 74.685], [13.345, 74.745]], distance: "6.5 km", time: "14 min", status: "CLEAR", congestion: "MODERATE", hazardExposure: "LOW" }
+    ],
+    initialTimeline: [
+      { time: "14:00", text: "IMD Cyclone alert issued for Coastal Karnataka.", type: "critical" },
+      { time: "14:15", text: "Malpe Harbour tide gauge registered +2.2m surge.", type: "critical" },
+      { time: "14:30", text: "Udupi Sports Complex activated for coastal evacuation.", type: "info" }
     ]
   }
 };
 
-// --- 2. CUSTOM MAP MARKERS ---
+// Custom Leaflet Icons
 const createRiskIcon = (isCritical) => new L.DivIcon({
   className: `custom-marker risk ${isCritical ? "critical" : ""}`,
   html: '<div style="font-size:12px; margin-top:2px;">⚠️</div>',
@@ -318,7 +392,6 @@ const createInfraIcon = (iconText) => new L.DivIcon({
   iconAnchor: [13, 13]
 });
 
-// Helper component to center and zoom Leaflet map dynamically
 function MapController({ center, zoom }) {
   const map = useMap();
   useEffect(() => {
@@ -329,11 +402,10 @@ function MapController({ center, zoom }) {
   return null;
 }
 
-// Landing Page View Component
+// --- 2. LANDING PAGE COMPONENT ---
 function LandingPage({ onEnter }) {
   return (
     <div className="landing-page">
-      {/* Background Sensor/Data Nodes */}
       <div className="sensor-nodes-container">
         <div className="sensor-node" style={{ top: "15%", left: "12%" }}></div>
         <div className="sensor-node red" style={{ top: "35%", left: "45%" }}></div>
@@ -344,20 +416,21 @@ function LandingPage({ onEnter }) {
       </div>
       <div className="hero-radial-glow"></div>
 
+      {/* Navigation */}
       <nav className="landing-nav">
         <div className="landing-logo-container">
           <div className="landing-logo">
-            🛡️ JANRAKSHAK<span style={{ color: "#3faf6a", fontSize: "14px", fontWeight: "800", marginLeft: "2px" }}>.gov</span>
+            🛡️ JANRAKSHAK
           </div>
-          <div className="landing-logo-sub">DISASTER INTELLIGENCE PLATFORM</div>
+          <div className="landing-logo-sub">DISASTER INTELLIGENCE PLATFORM • SIH26191 PROTOTYPE</div>
         </div>
         <div className="landing-nav-links">
-          <a href="#platform" className="landing-nav-link">Platform</a>
-          <a href="#how-it-works" className="landing-nav-link">How It Works</a>
-          <a href="#intelligence" className="landing-nav-link">Intelligence</a>
-          <a href="#about" className="landing-nav-link">About</a>
+          <a href="#platform" className="landing-nav-link">Overview</a>
+          <a href="#how-it-works" className="landing-nav-link">Pipeline</a>
+          <a href="#intelligence" className="landing-nav-link">Capabilities</a>
+          <a href="#about" className="landing-nav-link">Governance</a>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <div className="landing-nav-status">
             <span></span>SYSTEM OPERATIONAL
           </div>
@@ -367,156 +440,169 @@ function LandingPage({ onEnter }) {
         </div>
       </nav>
 
-      {/* Hero Section */}
+      {/* Balanced 2-Column Hero Section */}
       <section className="landing-hero" id="platform">
-        <div className="landing-hero-overlay"></div>
-        <div className="landing-hero-gradient"></div>
-        <div className="landing-hero-bg"></div>
         <div className="hero-left">
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+            <span style={{ fontSize: "11px", fontWeight: "800", color: "#3896e0", background: "rgba(56, 150, 224, 0.15)", border: "1px solid rgba(56, 150, 224, 0.3)", padding: "4px 10px", borderRadius: "6px", textTransform: "uppercase" }}>
+              ● SYSTEM OPERATIONAL
+            </span>
+            <span style={{ fontSize: "11px", fontWeight: "800", color: "#ffb733", background: "rgba(212, 142, 34, 0.15)", border: "1px solid rgba(212, 142, 34, 0.3)", padding: "4px 10px", borderRadius: "6px" }}>
+              SIH26191 PROTOTYPE
+            </span>
+          </div>
+
           <h1>AI-POWERED GEOSPATIAL DISASTER INTELLIGENCE</h1>
-          <h2 style={{ textTransform: "uppercase" }}>
-            KNOW THE RISK.<br />
-            <span style={{ color: "#dc4653" }}>ACT BEFORE IT ESCALATES.</span>
+          <h2>
+            FROM RED ZONE<br />
+            <span style={{ color: "#44d67c" }}>TO SAFE ZONE.</span>
           </h2>
           <p>
-            JanRakshak combines geospatial intelligence, vulnerability analysis and AI-assisted decision support to help authorities detect risk, prioritize communities and coordinate response.
+            JanRakshak empowers disaster management authorities with real-time geospatial risk modeling, AI safe-site recommendation explainability, and offline operational resilience during critical emergencies.
           </p>
           <div className="hero-actions">
-            <button className="hero-btn-primary" onClick={onEnter}>ENTER COMMAND CENTER &rarr;</button>
-            <a href="#how-it-works" className="hero-btn-secondary">EXPLORE HOW IT WORKS</a>
+            <button className="hero-btn-primary" onClick={onEnter}>
+              ENTER COMMAND CENTER &rarr;
+            </button>
+            <a href="#how-it-works" className="hero-btn-secondary">
+              EXPLORE CAPABILITIES
+            </a>
           </div>
           <div className="hero-bullet-indicators">
             <div className="hero-bullet-indicator">🔔 Early Warning</div>
             <div className="hero-bullet-indicator">🤖 AI-Assisted Decisions</div>
-            <div className="hero-bullet-indicator">⚡ Faster Response</div>
+            <div className="hero-bullet-indicator">⚡ Rapid Evacuation</div>
             <div className="hero-bullet-indicator">🔌 Works Offline</div>
           </div>
         </div>
         
-        {/* --- 5. HERO GIS VISUALIZATION --- */}
+        {/* Right Column: Miniature GIS Radar Canvas */}
         <div className="hero-visual-gis">
           <div className="gis-header">
-            <span>LIVE GEOSPATIAL INTELLIGENCE</span>
+            <span>LIVE GEOSPATIAL COMMAND RADAR</span>
             <span className="live-indicator">
               <span className="pulse-dot"></span>LIVE
             </span>
           </div>
           
           <div className="gis-grid"></div>
-          
-          {/* Radar Circles */}
           <div className="gis-radar-ring r1"></div>
           <div className="gis-radar-ring r2"></div>
           <div className="gis-radar-ring r3"></div>
-          
-          {/* Radar Sweeper */}
           <div className="gis-scanner"></div>
           
-          {/* Polygons & Routes */}
-          <div className="gis-danger-poly"></div>
-          <div className="gis-route-poly"></div>
+          <div className="gis-marker red" style={{ top: "160px", left: "140px" }}></div>
+          <div className="gis-marker green" style={{ top: "250px", left: "270px" }}></div>
+          <div className="gis-marker blue" style={{ top: "100px", left: "260px" }}></div>
           
-          {/* Custom Markers */}
-          <div className="gis-marker red" style={{ top: "160px", left: "140px" }}>
-            <div className="dot"></div>
-            <div className="pulse"></div>
-          </div>
-          
-          <div className="gis-marker green" style={{ top: "250px", left: "270px" }}>
-            <div className="dot"></div>
-            <div className="pulse"></div>
-          </div>
-
-          <div className="gis-marker blue" style={{ top: "100px", left: "260px" }}>
-            <div className="dot"></div>
-            <div className="pulse"></div>
-          </div>
-          
-          {/* GIS Labels */}
-          <div className="gis-label red-lbl" style={{ top: "115px", left: "55px" }}>
-            RED HAZARD ZONE • Risk Level: 92%
-          </div>
-          
-          <div className="gis-label red-lbl" style={{ top: "185px", left: "120px" }}>
-            2,140 PEOPLE AT RISK
-          </div>
-          
-          <div className="gis-label green-lbl" style={{ top: "275px", left: "215px" }}>
-            SAFE SITE B • Cap: 2,880 • Dist: 4.2 km
-          </div>
-
-          <div className="gis-label blue-lbl" style={{ top: "70px", left: "210px" }}>
-            DISTRICT HOSPITAL
-          </div>
-
-          <div className="gis-label blue-lbl" style={{ top: "210px", left: "280px" }}>
-            EVACUATION ROUTE • Limited Access
-          </div>
+          <div className="gis-label red-lbl" style={{ top: "115px", left: "55px" }}>RED HAZARD ZONE • 87/100</div>
+          <div className="gis-label red-lbl" style={{ top: "185px", left: "120px" }}>2,140 PEOPLE AT RISK</div>
+          <div className="gis-label green-lbl" style={{ top: "275px", left: "215px" }}>SAFE SITE B • 2,880 Capacity</div>
+          <div className="gis-label blue-lbl" style={{ top: "70px", left: "210px" }}>DISTRICT HOSPITAL</div>
           
           <div className="gis-footer">
-            <span>GIS COMMAND RADAR • ACTIVE</span>
-            <span>CRITICAL INFRASTRUCTURE</span>
+            <span>GIS SCENARIO RADAR • ACTIVE</span>
+            <span>CRITICAL INFRASTRUCTURE ONLINE</span>
           </div>
         </div>
       </section>
 
-      {/* --- 6. DISASTER IMAGE INTEL MODULES STRIP --- */}
+      {/* Capability Cards Strip */}
+      <section className="capability-section" id="intelligence">
+        <div className="capability-grid">
+          <div className="capability-card">
+            <div className="capability-icon">📡</div>
+            <h5>EARLY WARNING</h5>
+            <p>Identify emerging hazard zones through sensor telemetry and multi-hazard data layers.</p>
+          </div>
+          <div className="capability-card">
+            <div className="capability-icon">🤖</div>
+            <h5>AI-ASSISTED DECISIONS</h5>
+            <p>Turn complex geospatial layers into clear safe site recommendations with explainable decision checkpoints.</p>
+          </div>
+          <div className="capability-card">
+            <div className="capability-icon">⚡</div>
+            <h5>RAPID EVACUATION</h5>
+            <p>Coordinate clear evacuation routes, road status, and carrying capacity for vulnerable communities.</p>
+          </div>
+          <div className="capability-card">
+            <div className="capability-icon">🔌</div>
+            <h5>OFFLINE RESILIENCE</h5>
+            <p>Continue critical decision-support processes seamlessly during network failure and degraded connectivity.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Disaster Modules Strip */}
       <section className="disaster-strip-section">
         <div className="disaster-grid">
           <div className="disaster-intel-card">
             <div className="disaster-image-wrapper">
-              <img src="https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80" alt="Flood Rescue" />
+              <img
+                src="https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80"
+                alt="Flood Rescue"
+                onError={(e) => { e.target.onerror = null; e.target.src = defaultImages.flood; }}
+              />
               <div className="disaster-image-overlay"></div>
               <span className="disaster-card-num">01</span>
             </div>
             <div className="disaster-intel-info">
               <h5>FLOOD RESCUE</h5>
-              <p>Rapid identification of affected communities and evacuation priorities.</p>
+              <p>Rapid identification of submerged sectors and relocation priorities.</p>
             </div>
           </div>
-          
           <div className="disaster-intel-card">
             <div className="disaster-image-wrapper">
-              <img src="https://images.unsplash.com/photo-1599740831666-415c89893d87?auto=format&fit=crop&w=800&q=80" alt="Landslide Response" />
+              <img
+                src="https://images.unsplash.com/photo-1599740831666-415c89893d87?auto=format&fit=crop&w=800&q=80"
+                alt="Landslide Response"
+                onError={(e) => { e.target.onerror = null; e.target.src = defaultImages.landslide; }}
+              />
               <div className="disaster-image-overlay"></div>
               <span className="disaster-card-num">02</span>
             </div>
             <div className="disaster-intel-info">
               <h5>LANDSLIDE RESPONSE</h5>
-              <p>Terrain-aware risk intelligence for vulnerable mountain regions.</p>
+              <p>Terrain slope shear stress intelligence for vulnerable mountain regions.</p>
             </div>
           </div>
-          
           <div className="disaster-intel-card">
             <div className="disaster-image-wrapper">
-              <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80" alt="Urban Flooding" />
+              <img
+                src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80"
+                alt="Urban Flooding"
+                onError={(e) => { e.target.onerror = null; e.target.src = defaultImages.urban; }}
+              />
               <div className="disaster-image-overlay"></div>
               <span className="disaster-card-num">03</span>
             </div>
             <div className="disaster-intel-info">
               <h5>URBAN FLOODING</h5>
-              <p>Geospatial analysis of critical infrastructure and population exposure.</p>
+              <p>Storm drain backflow monitoring and population exposure analysis.</p>
             </div>
           </div>
-          
           <div className="disaster-intel-card">
             <div className="disaster-image-wrapper">
-              <img src="https://images.unsplash.com/photo-1578357074759-38389e80ac5a?auto=format&fit=crop&w=800&q=80" alt="Emergency Responders" />
+              <img
+                src="https://images.unsplash.com/photo-1578357074759-38389e80ac5a?auto=format&fit=crop&w=800&q=80"
+                alt="Emergency Responders"
+                onError={(e) => { e.target.onerror = null; e.target.src = defaultImages.responders; }}
+              />
               <div className="disaster-image-overlay"></div>
               <span className="disaster-card-num">04</span>
             </div>
             <div className="disaster-intel-info">
               <h5>EMERGENCY RESPONDERS</h5>
-              <p>Coordinate active response teams, essential resources and safe routes.</p>
+              <p>Coordinate active response teams, essential resources, and safe routes.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* --- 7. HOW JANRAKSHAK WORKS --- */}
-      <section className="how-works-section" id="how-it-works" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <div className="section-header" style={{ textAlign: "center", marginBottom: "60px" }}>
-          <h3>Workflow Pipeline</h3>
+      {/* Operational Pipeline */}
+      <section className="how-works-section" id="how-it-works">
+        <div className="section-header" style={{ textAlign: "center", marginBottom: "48px" }}>
+          <h3>Operational Pipeline</h3>
           <h4>How JanRakshak Works</h4>
         </div>
         <div style={{ position: "relative" }}>
@@ -525,214 +611,71 @@ function LandingPage({ onEnter }) {
             <div className="how-works-card">
               <div className="how-works-circle">01</div>
               <div className="how-works-title">DETECT</div>
-              <div className="how-works-desc">Monitor rainfall, terrain, infrastructure and incident signals.</div>
+              <div className="how-works-desc">Monitor rainfall, soil moisture, river levels, and incident signals in real-time.</div>
             </div>
             <div className="how-works-card">
               <div className="how-works-circle">02</div>
               <div className="how-works-title">ANALYZE</div>
-              <div className="how-works-desc">Combine geospatial and vulnerability data to calculate risk.</div>
+              <div className="how-works-desc">Combine geospatial layers and vulnerability data to compute composite risk scores.</div>
             </div>
             <div className="how-works-card">
               <div className="how-works-circle">03</div>
               <div className="how-works-title">PRIORITIZE</div>
-              <div className="how-works-desc">Identify communities requiring immediate attention.</div>
+              <div className="how-works-desc">Identify vulnerable demographics and recommend safe site destinations with clear decision explainability.</div>
             </div>
             <div className="how-works-card">
               <div className="how-works-circle">04</div>
               <div className="how-works-title">RESPOND</div>
-              <div className="how-works-desc">Recommend evacuation routes, safe sites and coordinated action.</div>
+              <div className="how-works-desc">Dispatch authority alerts, open evacuation plans, and coordinate volunteer relief teams.</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* --- 8. WHY JANRAKSHAK / CAPABILITY STRIP --- */}
-      <section className="capability-section" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <div className="section-header" style={{ textAlign: "center", marginBottom: "50px" }}>
-          <h3>Platform Overview</h3>
-          <h4>Why JanRakshak</h4>
-        </div>
-        <div className="capability-grid">
-          <div className="capability-card">
-            <div className="capability-icon">📡</div>
-            <h5>EARLY WARNING</h5>
-            <p>Identify emerging disaster risk before escalation levels trigger.</p>
-          </div>
-          <div className="capability-card">
-            <div className="capability-icon">🤖</div>
-            <h5>AI-ASSISTED DECISIONS</h5>
-            <p>Turn complex geospatial data layers into actionable recommendations.</p>
-          </div>
-          <div className="capability-card">
-            <div className="capability-icon">🔌</div>
-            <h5>OFFLINE RESILIENCE</h5>
-            <p>Continue essential decision support processes during degraded connectivity.</p>
-          </div>
-          <div className="capability-card">
-            <div className="capability-icon">⚡</div>
-            <h5>COORDINATED RESPONSE</h5>
-            <p>Connect emergency authorities, active responders and relief organizations.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* --- 9. IMPACT METRICS --- */}
+      {/* Impact Metrics Strip */}
       <section className="impact-strip">
         <div className="impact-content">
-          <div className="impact-title">REAL-TIME DECISION SUPPORT</div>
+          <div className="impact-title">
+            SIMULATED DEMO METRICS
+          </div>
           <div className="impact-metrics">
-            <div className="impact-metric">
-              <b className="red">03</b>
-              <span>ACTIVE RED ZONES</span>
-            </div>
-            <div className="impact-metric">
-              <b className="blue">8,420</b>
-              <span>PEOPLE AT RISK</span>
-            </div>
-            <div className="impact-metric">
-              <b className="green">07</b>
-              <span>SAFE SITES</span>
-            </div>
-            <div className="impact-metric">
-              <b className="cyan">04</b>
-              <span>EVACUATION ROUTES</span>
-            </div>
+            <div className="impact-metric"><b className="red">05</b><span>ACTIVE RED ZONES</span></div>
+            <div className="impact-metric"><b className="blue">2,140</b><span>PEOPLE AT RISK</span></div>
+            <div className="impact-metric"><b className="green">12</b><span>SAFE SITES AVAILABLE</span></div>
+            <div className="impact-metric"><b className="blue">18</b><span>EVACUATION ROUTES</span></div>
           </div>
         </div>
       </section>
 
-      {/* --- 10. THE CHALLENGE --- */}
-      <section className="challenge-section" id="about" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <div className="section-header" style={{ textAlign: "center", marginBottom: "50px" }}>
-          <h3>The Challenge</h3>
-          <h4 style={{ fontSize: "28px", maxWidth: "600px", margin: "0 auto", textTransform: "uppercase" }}>
-            DISASTERS MOVE FAST.<br />
-            DECISIONS NEED TO MOVE FASTER.
-          </h4>
-          <p style={{ color: "#a9c1d2", fontSize: "13px", marginTop: "12px", maxWidth: "700px", margin: "12px auto 0 auto", lineHeight: "1.6" }}>
-            Response teams need to understand where the hazard is, who is vulnerable, which routes remain accessible and where people can safely relocate.
-          </p>
-        </div>
-        
-        <div className="challenge-grid">
-          <div className="challenge-card">
-            <div className="challenge-card-icon">📡</div>
-            <h5>RISK DETECTION</h5>
-            <p>Identify emerging hazard zones through sensor inputs and geographical data layers.</p>
-          </div>
-          <div className="challenge-card">
-            <div className="challenge-card-icon">👥</div>
-            <h5>VULNERABILITY INTELLIGENCE</h5>
-            <p>Understand population exposure and critical needs across affected villages.</p>
-          </div>
-          <div className="challenge-card">
-            <div className="challenge-card-icon">🗺️</div>
-            <h5>RESPONSE COORDINATION</h5>
-            <p>Connect intelligence directly to evacuation and relief decisions on the command line.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* --- 11. INTELLIGENCE SNAPSHOT --- */}
-      <section className="intel-section" id="intelligence" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <div className="intel-heading">
-          <h3>GIS Intelligence</h3>
-          <h4>FROM DATA TO ACTIONABLE INTELLIGENCE.</h4>
-          <p>
-            JanRakshak transforms complex geospatial maps and telemetry reports into a single, unified hazard matrix. Operations teams receive instant composite scores to trigger alerts before hazard thresholds are breached.
-          </p>
-        </div>
-        
-        <div className="intel-preview-card">
-          <div className="intel-card-header">🤖 EMERGENCY INTELLIGENCE SNAPSHOT</div>
-          <div className="intel-card-grid">
-            <div className="intel-card-item">
-              <span>Composite Hazard Score</span>
-              <b className="red">87 / 100</b>
-            </div>
-            <div className="intel-card-item">
-              <span>Flood Risk Index</span>
-              <b className="red">92 / 100</b>
-            </div>
-            <div className="intel-card-item">
-              <span>Landslide Risk Index</span>
-              <b style={{ color: "#d39422" }}>41 / 100</b>
-            </div>
-            <div className="intel-card-item">
-              <span>People Affected</span>
-              <b>2,140</b>
-            </div>
-            <div className="intel-card-item">
-              <span>Road Access</span>
-              <b style={{ color: "#d39422" }}>LIMITED</b>
-            </div>
-            <div className="intel-card-item">
-              <span>AI confidence score</span>
-              <b className="green">94%</b>
-            </div>
-            <div className="intel-card-item full-width">
-              <span>AI RECOMMENDATION</span>
-              <b style={{ color: "#dc4653" }}>IMMEDIATE RELOCATION REQUIRED</b>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* --- 12. REAL-WORLD / NETWORK-DEGRADED CAPABILITY --- */}
-      <section className="resilience-section">
+      {/* Resilience Banner */}
+      <section className="resilience-section" id="about">
         <div className="resilience-banner-panel">
           <div className="resilience-left">
-            <h4>BUILT FOR REAL-WORLD CONDITIONS</h4>
-            <p>
-              Disaster zones may lose connectivity when response is needed most. JanRakshak is designed to support network-degraded operational scenarios.
-            </p>
+            <h4>DESIGNED FOR DEGRADED CONNECTIVITY</h4>
+            <p>Cached map layers, queued emergency updates, and automatic synchronization when network connection is restored.</p>
           </div>
-          <div className="resilience-status" style={{ borderColor: "#754425", color: "#ffd08a", background: "rgba(75, 48, 32, 0.4)" }}>
-            <span style={{ background: "#ffd08a" }}></span>NETWORK-DEGRADED MODE
+          <div className="resilience-status">
+            <span></span>● OFFLINE MODE READY
           </div>
         </div>
       </section>
 
-      {/* --- 13. TRUST / BADGES STRIP --- */}
-      <section style={{ padding: "0 40px 60px 40px", textAlign: "center", position: "relative", zIndex: "10" }}>
-        <div style={{ fontSize: "11px", fontWeight: "800", color: "#1f5a8a", letterSpacing: "1.5px", textTransform: "uppercase" }}>
-          BUILT FOR HIGH-PRESSURE DECISION MAKING
-        </div>
-        <div className="trust-badges-container">
-          <span className="trust-badge">GIS INTELLIGENCE</span>
-          <span className="trust-badge">AI-ASSISTED ANALYSIS</span>
-          <span className="trust-badge">OFFLINE CAPABLE</span>
-          <span className="trust-badge">HUMAN-IN-THE-LOOP</span>
-        </div>
-      </section>
-
-      {/* --- 14. FINAL CTA --- */}
-      <section className="cta-section">
-        <h3>TURN DISASTER DATA<br />INTO DECISIVE ACTION.</h3>
-        <p>
-          Explore the JanRakshak command center and see how geospatial intelligence can support faster, safer disaster response.
-        </p>
-        <button className="hero-btn-primary" style={{ padding: "16px 36px", fontSize: "14px" }} onClick={onEnter}>
-          ENTER COMMAND CENTER &rarr;
-        </button>
-      </section>
-
-      {/* --- 15. FOOTER --- */}
+      {/* Footer */}
       <footer className="landing-footer">
         <div className="footer-content">
           <div className="footer-brand">
-            <h4>🛡️ JANRAKSHAK.gov</h4>
-            <p>AI-powered geospatial disaster intelligence and decision support.</p>
+            <h4>🛡️ JANRAKSHAK</h4>
+            <p>AI-powered geospatial disaster intelligence platform • SIH26191 Prototype.</p>
           </div>
           <div className="footer-column">
             <h5>Platform</h5>
             <a href="#platform">Overview</a>
-            <a href="#intelligence">Features</a>
+            <a href="#intelligence">Capabilities</a>
           </div>
           <div className="footer-column">
-            <h5>How It Works</h5>
+            <h5>Workflow</h5>
             <a href="#how-it-works">Pipeline</a>
-            <a href="#about">Challenge</a>
+            <a href="#about">Governance</a>
           </div>
           <div className="footer-column">
             <h5>Command Center</h5>
@@ -740,24 +683,20 @@ function LandingPage({ onEnter }) {
           </div>
         </div>
         <div className="footer-disclaimer">
-          <span>© 2026 JanRakshak</span>
-          <span>Decision-support prototype — not an autonomous relocation order.</span>
+          <span>© 2026 JanRakshak • SIH Problem Statement SIH26191</span>
+          <span>AI-assisted decision-support prototype • Authorized personnel must validate consequential actions.</span>
         </div>
       </footer>
     </div>
   );
 }
 
-function App(){
-  // --- 3. CLIENT SIDE HASH ROUTING STATE ---
-  const [view, setView] = useState(() => {
-    return window.location.hash === "#/dashboard" ? "dashboard" : "landing";
-  });
+// --- 3. MAIN DASHBOARD COMPONENT ---
+function App() {
+  const [view, setView] = useState(() => window.location.hash === "#/dashboard" ? "dashboard" : "landing");
 
   useEffect(() => {
-    const handleHashChange = () => {
-      setView(window.location.hash === "#/dashboard" ? "dashboard" : "landing");
-    };
+    const handleHashChange = () => setView(window.location.hash === "#/dashboard" ? "dashboard" : "landing");
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
@@ -767,16 +706,18 @@ function App(){
     setView("dashboard");
   };
 
-  // --- 5. SCENARIO STATE SELECTOR ---
+  // Scenario Selector State
   const [scenarioName, setScenarioName] = useState("Flood — Mysuru");
-  
   const activeScenario = scenariosData[scenarioName] || scenariosData["Flood — Mysuru"];
 
-  const [selected, setSelected] = useState(() => {
-    return Object.keys(activeScenario.incidents)[0];
-  });
+  // Selected Incident State
+  const [selected, setSelected] = useState(() => Object.keys(activeScenario.incidents)[0]);
   
+  // Offline & Queued Events State
   const [offline, setOffline] = useState(false);
+  const [queuedEvents, setQueuedEvents] = useState(0);
+
+  // Modals & UI States
   const [activeModal, setActiveModal] = useState(null);
   const [alertsCount, setAlertsCount] = useState(12);
   const [evacuationActive, setEvacuationActive] = useState(false);
@@ -784,39 +725,36 @@ function App(){
   const [coordinatedNeeds, setCoordinatedNeeds] = useState([]);
   const [toasts, setToasts] = useState([]);
 
-  // --- 1. LAYER TOGGLES STATE ---
+  // Map Toggles & Filter State
   const [showHazards, setShowHazards] = useState(true);
   const [showSafeSites, setShowSafeSites] = useState(true);
   const [showRoutes, setShowRoutes] = useState(true);
   const [showInfra, setShowInfra] = useState(true);
+  const [infraCategoryFilter, setInfraCategoryFilter] = useState(null);
 
-  // Custom center and zoom map controller state
+  // Map Navigation State
   const [customCenter, setCustomCenter] = useState(null);
   const [customZoom, setCustomZoom] = useState(null);
 
-  // Dynamic AI site recommendation override state
+  // AI Recommendation Override State
   const [selectedSiteName, setSelectedSiteName] = useState(null);
 
-  // --- 2. ALERT DISPATCH TIMESTAMPS STATE ---
+  // Timestamps & Timeline State
   const [dispatchedTimestamp, setDispatchedTimestamp] = useState(null);
-
-  // --- 4. RECENT SYSTEM ACTIVITY STATE ---
-  const [activities, setActivities] = useState([
-    { time: "17:28:10", text: "System initialized and maps loaded.", type: "info" },
-    { time: "17:29:45", text: "Risk assessment updated for scenario.", type: "info" },
-    { time: "17:31:02", text: "Safe site capacity verified by local agents.", type: "info" },
-    { time: "17:32:15", text: "Heavy rainfall alert registered from met station.", type: "critical" }
-  ]);
-
-  // Action logging function
-  const addActivityLog = (text, type = "info") => {
-    const now = new Date();
-    const timeStr = now.toTimeString().split(" ")[0];
-    setActivities((prev) => [{ time: timeStr, text, type }, ...prev]);
-  };
-
-  // --- 5. MAP HEADER LIVE TIMESTAMP ---
   const [lastUpdated, setLastUpdated] = useState("");
+  const [activities, setActivities] = useState(activeScenario.initialTimeline || []);
+
+  // --- WHAT-IF SCENARIO SIMULATION STATE ---
+  const currentIncident = activeScenario.incidents[selected] || activeScenario.incidents[Object.keys(activeScenario.incidents)[0]];
+  
+  const [simRainfall, setSimRainfall] = useState(currentIncident.rainfall);
+  const [simFloodRisk, setSimFloodRisk] = useState(currentIncident.floodRisk);
+  const [simLandslideRisk, setSimLandslideRisk] = useState(currentIncident.landslideRisk);
+  const [simRoadAccess, setSimRoadAccess] = useState(currentIncident.roadAccessRating || 40);
+  const [simActive, setSimActive] = useState(false);
+  const [simResult, setSimResult] = useState(null);
+
+  // Live Clock Update
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
@@ -827,28 +765,60 @@ function App(){
     return () => clearInterval(interval);
   }, []);
 
-  // Reset custom states when selected incident or scenario changes
+  // Reset local state when selected incident or scenario changes
   useEffect(() => {
     setCustomCenter(null);
     setCustomZoom(null);
     setSelectedSiteName(null);
     setDispatchedTimestamp(null);
     setEvacuationActive(false);
+    setSimActive(false);
+    setSimResult(null);
   }, [selected, scenarioName]);
 
-  // Sync selected incident when scenario changes
+  // Sync state when scenario changes
   useEffect(() => {
     const incidentKeys = Object.keys(activeScenario.incidents);
-    setSelected(incidentKeys[0]);
+    const firstIncKey = incidentKeys[0];
+    setSelected(firstIncKey);
+    const incObj = activeScenario.incidents[firstIncKey];
+    setSimRainfall(incObj.rainfall);
+    setSimFloodRisk(incObj.floodRisk);
+    setSimLandslideRisk(incObj.landslideRisk);
+    setSimRoadAccess(incObj.roadAccessRating || 40);
+    setActivities(activeScenario.initialTimeline || []);
     addActivityLog(`Scenario loaded: ${activeScenario.name}`, "info");
     showToast(`Loaded scenario: ${activeScenario.name}`, "info");
   }, [scenarioName]);
 
-  const currentIncident = activeScenario.incidents[selected] || activeScenario.incidents[Object.keys(activeScenario.incidents)[0]];
-  const mapCenter = currentIncident.center;
+  // Sync simulation sliders when selected incident changes
+  useEffect(() => {
+    setSimRainfall(currentIncident.rainfall);
+    setSimFloodRisk(currentIncident.floodRisk);
+    setSimLandslideRisk(currentIncident.landslideRisk);
+    setSimRoadAccess(currentIncident.roadAccessRating || 40);
+  }, [selected]);
 
-  // Resolved safe site recommendation
-  const recommendedSite = activeScenario.safeSites[selectedSiteName || currentIncident.recommendedSite] || Object.values(activeScenario.safeSites)[0];
+  // Dynamic Hazard Calculations
+  const displayHazardScore = simActive && simResult ? simResult.simScore : currentIncident.hazardScore;
+  const displayThreatLevel = simActive && simResult ? simResult.simThreatLevel : currentIncident.risk;
+  const displayPriority = simActive && simResult ? simResult.simPriority : currentIncident.priority;
+  const displayFloodRisk = simActive ? simFloodRisk : currentIncident.floodRisk;
+  const displayLandslideRisk = simActive ? simLandslideRisk : currentIncident.landslideRisk;
+  const displayRainfall = simActive ? simRainfall : currentIncident.rainfall;
+
+  const mapCenter = currentIncident.center;
+  const recommendedSite = activeScenario.safeSites[selectedSiteName || (simResult && simResult.altSiteSuggested ? Object.keys(activeScenario.safeSites)[1] || currentIncident.recommendedSite : currentIncident.recommendedSite)] || Object.values(activeScenario.safeSites)[0];
+  const activeEvacRoute = activeScenario.evacuationRoutes.find(r => r.incident === selected) || activeScenario.evacuationRoutes[0];
+
+  const addActivityLog = (text, type = "info") => {
+    const now = new Date();
+    const timeStr = now.toTimeString().split(" ")[0];
+    setActivities((prev) => [{ time: timeStr, text, type }, ...prev]);
+    if (offline) {
+      setQueuedEvents((prev) => prev + 1);
+    }
+  };
 
   const showToast = (message, type = "success") => {
     const id = Date.now() + Math.random();
@@ -858,8 +828,31 @@ function App(){
     }, 4000);
   };
 
-  const closeToast = (id) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+  const closeToast = (id) => setToasts((prev) => prev.filter((t) => t.id !== id));
+
+  // Simulation Logic
+  const handleRunSimulation = () => {
+    const simScore = Math.min(100, Math.max(0, Math.round((simFloodRisk * 0.45) + (simLandslideRisk * 0.35) + ((simRainfall / 300) * 20))));
+    const simThreatLevel = simScore >= 80 ? "CRITICAL" : simScore >= 60 ? "HIGH" : "MODERATE";
+    const simPriority = simScore >= 75 ? "IMMEDIATE" : "MONITOR";
+    const escalated = simScore > currentIncident.hazardScore + 3;
+    const altSiteSuggested = simRoadAccess < 30 || simFloodRisk > 92;
+
+    setSimResult({ simScore, simThreatLevel, simPriority, escalated, altSiteSuggested });
+    setSimActive(true);
+    addActivityLog(`[SIMULATION] Parameters executed: Rain ${simRainfall}mm, Risk Score updated to ${simScore}/100.`, "sim");
+    showToast(`Simulation complete: Risk Score updated to ${simScore}/100`, "info");
+  };
+
+  const handleResetSimulation = () => {
+    setSimActive(false);
+    setSimResult(null);
+    setSimRainfall(currentIncident.rainfall);
+    setSimFloodRisk(currentIncident.floodRisk);
+    setSimLandslideRisk(currentIncident.landslideRisk);
+    setSimRoadAccess(currentIncident.roadAccessRating || 40);
+    addActivityLog(`[SIMULATION] Parameters reset to baseline.`, "info");
+    showToast(`Simulation parameters reset to baseline.`, "info");
   };
 
   const deployNgo = (name) => {
@@ -879,7 +872,7 @@ function App(){
     const timeStr = now.toTimeString().split(" ")[0];
     setDispatchedTimestamp(timeStr);
     setAlertsCount(16);
-    addActivityLog(`Emergency alerts dispatched to response units for ${selected}.`, "critical");
+    addActivityLog(`Emergency alerts dispatched to DDMA, Police, Medical & Volunteers for ${selected}.`, "critical");
     showToast("Authority alerts dispatched successfully.", "success");
   };
 
@@ -889,63 +882,135 @@ function App(){
     showToast("Evacuation plan activated successfully.", "success");
   };
 
+  const handleToggleOffline = () => {
+    if (offline) {
+      setOffline(false);
+      showToast(`CONNECTION RESTORED — Synchronized ${queuedEvents} queued events`, "success");
+      addActivityLog(`Connection restored. Synchronized ${queuedEvents} offline events.`, "info");
+      setQueuedEvents(0);
+    } else {
+      setOffline(true);
+      showToast("Offline / Degraded Connectivity Mode Activated", "info");
+      addActivityLog("Network failure simulated. Degraded mode active.", "critical");
+    }
+  };
+
   if (view === "landing") {
     return <LandingPage onEnter={navigateToDashboard} />;
   }
 
   return (
     <div className="app">
+      {/* Dashboard Top Header */}
       <header className="topbar">
-        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <button style={{ background: "transparent", border: "none", color: "#a9c1d2", fontSize: "12px", cursor: "pointer", padding: 0 }} onClick={() => { window.location.hash = "/"; setView("landing"); }}>
-            &larr; BACK
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <button style={{ background: "transparent", border: "none", color: "#8aa3b8", fontSize: "12px", cursor: "pointer", padding: 0 }} onClick={() => { window.location.hash = "/"; setView("landing"); }}>
+            &larr; MAIN PAGE
           </button>
+          <div style={{ height: "20px", width: "1px", background: "#153354" }}></div>
           <div>
-            <div className="brand">JANRAKSHAK</div>
-            <div className="tagline">AI-POWERED GEOSPATIAL DISASTER INTELLIGENCE</div>
+            <div className="brand" style={{ fontSize: "18px" }}>🛡️ JANRAKSHAK</div>
+            <div className="tagline">DISASTER INTELLIGENCE PLATFORM • SIH26191 PROTOTYPE</div>
           </div>
         </div>
 
-        {/* --- 5. SCENARIO SELECTOR INTERFACE --- */}
-        <div className="scenario-selector-container">
-          <label htmlFor="scenario-select">ACTIVE SCENARIO:</label>
-          <select
-            id="scenario-select"
-            className="scenario-select"
-            value={scenarioName}
-            onChange={(e) => setScenarioName(e.target.value)}
-          >
-            {Object.keys(scenariosData).map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="header-actions">
-          {/* --- 4. SIMULATION BADGE --- */}
-          <div className="simulation-banner">
-            <span></span>SIMULATION MODE
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div style={{ fontSize: "11px", fontWeight: "700", color: "#8aa3b8" }}>
+            OPERATOR: <strong style={{ color: "#ffffff" }}>COMMANDER 01</strong>
           </div>
-          <span className={"status " + (offline ? "offline":"online")}>
-            {offline ? "● OFFLINE / DEGRADED" : "● SYSTEM ONLINE"}
-          </span>
-          <button onClick={() => {
-            setOffline(!offline);
-            addActivityLog(offline ? "Network connection restored." : "Degraded system state simulated.", offline ? "info" : "critical");
-          }}>{offline ? "Restore Network" : "Simulate Network Failure"}</button>
+          <div className="header-actions">
+            <span className={"status " + (offline ? "offline" : "online")}>
+              {offline ? "● OFFLINE MODE" : "● SYSTEM ONLINE"}
+            </span>
+            <button onClick={handleToggleOffline}>{offline ? "Restore Network" : "Simulate Network Failure"}</button>
+          </div>
         </div>
       </header>
 
+      {/* Active Incident Horizontal Command Bar */}
+      <div className="command-status-bar">
+        <div className="command-status-left">
+          <div className={`status-badge ${offline ? "degraded" : "operational"}`}>
+            <span>●</span> {offline ? "DEGRADED CONNECTIVITY" : "SYSTEM OPERATIONAL"}
+          </div>
+          <div>SCENARIO: <strong style={{ color: "#ffffff" }}>{activeScenario.name}</strong></div>
+          <div>INCIDENT: <strong style={{ color: "#ffffff" }}>{selected}</strong></div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            THREAT LEVEL:
+            <span className={`threat-pill ${displayThreatLevel === "CRITICAL" ? "critical" : displayThreatLevel === "HIGH" ? "high" : "moderate"}`}>
+              {displayThreatLevel}
+            </span>
+          </div>
+        </div>
+
+        <div className="command-status-right">
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <label htmlFor="scenario-select" style={{ fontSize: "10px", fontWeight: "700", color: "#7b9bb6" }}>SELECT SCENARIO:</label>
+            <select
+              id="scenario-select"
+              className="scenario-select"
+              value={scenarioName}
+              onChange={(e) => setScenarioName(e.target.value)}
+            >
+              {Object.keys(scenariosData).map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>LAST SYNC: <strong style={{ color: "#ffffff" }}>{lastUpdated}</strong></div>
+          {offline && (
+            <span style={{ color: "#ffb733", fontWeight: "800" }}>
+              QUEUED: {queuedEvents}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* KPI Intelligence Strip */}
       <section className="stats">
-        <Stat label="ACTIVE RED ZONES" value="03" tone="red"/>
-        <Stat label="PEOPLE AT RISK" value={currentIncident.affected.toLocaleString()} tone="red"/>
-        <Stat label="SAFE SITES" value={`0${Object.keys(activeScenario.safeSites).length}`} tone="green"/>
-        <Stat label="ACTIVE ALERTS" value={alertsCount.toString()} tone="blue"/>
+        <div className="kpi-card">
+          <div className="kpi-header">
+            <span className="kpi-label">ACTIVE RED ZONES</span>
+            <span className="kpi-trend">CRITICAL</span>
+          </div>
+          <div className="kpi-value red">05</div>
+          <div className="kpi-subtext">Multi-hazard spatial buffers</div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-header">
+            <span className="kpi-label">PEOPLE AT RISK</span>
+            <span className="kpi-trend">+18% vs prev assessment</span>
+          </div>
+          <div className="kpi-value red">{currentIncident.affected.toLocaleString()}</div>
+          <div className="kpi-subtext">Inside high hazard exposure radius</div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-header">
+            <span className="kpi-label">SAFE SITES AVAILABLE</span>
+            <span style={{ fontSize: "9px", fontWeight: "800", color: "#44d67c", background: "rgba(63, 175, 106, 0.15)", padding: "2px 6px", borderRadius: "4px" }}>OPERATIONAL</span>
+          </div>
+          <div className="kpi-value green">{`0${Object.keys(activeScenario.safeSites).length}`}</div>
+          <div className="kpi-subtext">Capacity & water supply verified</div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-header">
+            <span className="kpi-label">EVACUATION ROUTES</span>
+            <span style={{ fontSize: "9px", fontWeight: "800", color: "#3896e0", background: "rgba(56, 150, 224, 0.15)", padding: "2px 6px", borderRadius: "4px" }}>MONITOR</span>
+          </div>
+          <div className="kpi-value blue">{`0${activeScenario.evacuationRoutes.length}`}</div>
+          <div className="kpi-subtext">Active road status monitored</div>
+        </div>
       </section>
 
+      {/* Main Command Dashboard Grid */}
       <main className="grid">
+        {/* Left Column */}
         <aside className="left">
-          {/* --- 3. INTERACTIVE INCIDENT SELECTION --- */}
+          {/* Active Incidents Panel */}
           <div className="panel">
             <div className="panel-title">ACTIVE INCIDENTS</div>
             {Object.keys(activeScenario.incidents).map((key) => {
@@ -963,71 +1028,118 @@ function App(){
             })}
           </div>
 
+          {/* Risk Intelligence Panel */}
           <div className="panel">
-            <div className="panel-title">HAZARD ANALYSIS</div>
-            <Metric label="Flood risk" value={`${currentIncident.floodRisk} / 100`} tone="red"/>
-            <Metric label="Landslide risk" value={`${currentIncident.landslideRisk} / 100`} tone="amber"/>
-            <Metric label="Rainfall" value={`${currentIncident.rainfall} mm`} tone="red"/>
-            <Metric label="Road accessibility" value={currentIncident.roadAccess} tone="amber"/>
+            <div className="panel-title">RISK INTELLIGENCE</div>
             <div className="score">
-              <div><span>COMPOSITE HAZARD SCORE</span><strong>{currentIncident.hazardScore}</strong></div>
-              <small>{currentIncident.risk} • requires immediate assessment</small>
+              <div>
+                <span>COMPOSITE RISK SCORE</span>
+                <strong>{displayHazardScore} / 100</strong>
+              </div>
+              <small>{displayThreatLevel} • Relocation priority: {displayPriority}</small>
+            </div>
+
+            <div className="risk-meter-container">
+              <div className="risk-item">
+                <div className="risk-item-header">
+                  <span>Flood Risk Index</span>
+                  <span style={{ color: "#ff5463" }}>{displayFloodRisk} / 100</span>
+                </div>
+                <div className="risk-progress-track">
+                  <div className="risk-progress-fill" style={{ width: `${displayFloodRisk}%`, background: "#ff5463" }}></div>
+                </div>
+              </div>
+
+              <div className="risk-item">
+                <div className="risk-item-header">
+                  <span>Landslide Risk Index</span>
+                  <span style={{ color: "#ffb733" }}>{displayLandslideRisk} / 100</span>
+                </div>
+                <div className="risk-progress-track">
+                  <div className="risk-progress-fill" style={{ width: `${displayLandslideRisk}%`, background: "#ffb733" }}></div>
+                </div>
+              </div>
+
+              <div className="risk-item">
+                <div className="risk-item-header">
+                  <span>Rainfall Telemetry</span>
+                  <span style={{ color: "#ff5463" }}>{displayRainfall} mm</span>
+                </div>
+                <div className="risk-progress-track">
+                  <div className="risk-progress-fill" style={{ width: `${Math.min(100, (displayRainfall / 300) * 100)}%`, background: "#ff5463" }}></div>
+                </div>
+              </div>
+
+              <div className="risk-item">
+                <div className="risk-item-header">
+                  <span>Road Accessibility</span>
+                  <span style={{ color: "#3896e0" }}>{currentIncident.roadAccess} ({currentIncident.roadAccessRating || 40}%)</span>
+                </div>
+                <div className="risk-progress-track">
+                  <div className="risk-progress-fill" style={{ width: `${currentIncident.roadAccessRating || 40}%`, background: "#3896e0" }}></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="risk-explanation-box">
+              <b>Why this risk level?</b>
+              High flood runoff combined with rainfall telemetry ({displayRainfall} mm) places {currentIncident.affected.toLocaleString()} residents inside the primary danger buffer. Road access is {currentIncident.roadAccess.toLowerCase()}, requiring immediate evacuation coordination.
             </div>
           </div>
 
-          {/* --- 4. RECENT SYSTEM ACTIVITY PANEL --- */}
+          {/* Infrastructure at Risk Panel */}
           <div className="panel">
-            <div className="panel-title">RECENT SYSTEM ACTIVITY</div>
-            <div className="activity-log">
-              {activities.map((act, index) => (
-                <div key={index} className={`activity-item ${act.type === "critical" ? "critical" : ""}`}>
-                  <span>{act.text}</span>
-                  <small>{act.time}</small>
-                </div>
-              ))}
+            <div className="panel-title">INFRASTRUCTURE AT RISK</div>
+            <div className="subtle" style={{ marginBottom: "8px" }}>Click category to filter map view</div>
+            <div className="infra-grid">
+              {[
+                { label: "Hospitals", cat: "Hospital", icon: "🏥", count: activeScenario.infrastructure.filter(i => i.category === "Hospital").length || 1 },
+                { label: "Police Stations", cat: "Police", icon: "👮", count: activeScenario.infrastructure.filter(i => i.category === "Police").length || 1 },
+                { label: "Fire Units", cat: "Fire", icon: "🚒", count: activeScenario.infrastructure.filter(i => i.category === "Fire").length || 1 },
+                { label: "Schools / Hubs", cat: "School", icon: "🏫", count: activeScenario.infrastructure.filter(i => i.category === "School").length || 1 }
+              ].map((item) => {
+                const isActive = infraCategoryFilter === item.cat;
+                return (
+                  <button
+                    key={item.cat}
+                    className={`infra-item-btn ${isActive ? "active" : ""}`}
+                    onClick={() => {
+                      const next = isActive ? null : item.cat;
+                      setInfraCategoryFilter(next);
+                      showToast(next ? `Filtered map markers to: ${item.label}` : "Showing all infrastructure map markers", "info");
+                    }}
+                  >
+                    <div className="infra-item-left">
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </div>
+                    <span className="infra-count-badge">{item.count}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </aside>
 
+        {/* Center Column: GIS Command Map */}
         <section className="map-panel">
-          {/* --- 5. MAP HEADER IMPROVEMENT --- */}
           <div className="map-header">
             <div>
-              <div className="panel-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div className="panel-title" style={{ display: "flex", alignItems: "center", gap: "8px", margin: 0 }}>
                 LIVE GIS COMMAND MAP
-                <span className="live-badge">
-                  <span className="pulse-dot"></span>LIVE DATA
+                <span className="live-indicator" style={{ fontSize: "9.5px" }}>
+                  <span className="pulse-dot"></span>LIVE GEOSPATIAL DATA
                 </span>
               </div>
-              <div className="subtle">SIMULATED DISASTER SCENARIO • {activeScenario.locationName.toUpperCase()} • Last updated: {lastUpdated}</div>
+              <div className="subtle">SIMULATED SCENARIO • {activeScenario.locationName.toUpperCase()} • Sync: {lastUpdated}</div>
             </div>
-            <div className="legend"><span className="dot red"></span> Red zone <span className="dot green"></span> Safe site</div>
-          </div>
-
-          {/* --- 6. MAP STATISTICS BAR --- */}
-          <div style={{ padding: "0 15px" }}>
-            <div className="map-stats-strip">
-              <div className="map-stat-item">
-                <span>Red Zones</span>
-                <b className="red">03</b>
-              </div>
-              <div className="map-stat-item">
-                <span>Safe Sites</span>
-                <b className="green">{`0${Object.keys(activeScenario.safeSites).length}`}</b>
-              </div>
-              <div className="map-stat-item">
-                <span>Evacuation Routes</span>
-                <b className="blue">{`0${activeScenario.evacuationRoutes.length}`}</b>
-              </div>
-              <div className="map-stat-item">
-                <span>People at Risk</span>
-                <b className="red">{currentIncident.affected.toLocaleString()}</b>
-              </div>
+            <div className="legend">
+              <span className="dot red"></span> Critical <span className="dot green"></span> Safe Site <span style={{ color: "#3896e0" }}>🏥 Infra</span>
             </div>
           </div>
 
           <div className="map-container-wrapper">
-            {/* --- 3. MAP CONTROL PANEL --- */}
+            {/* Floating Map Controls */}
             <div className="map-control-panel">
               <h4>Map Layers</h4>
               <div className="map-layer-toggles">
@@ -1045,44 +1157,29 @@ function App(){
                 </label>
                 <label className="map-layer-toggle">
                   <input type="checkbox" checked={showInfra} onChange={(e) => setShowInfra(e.target.checked)} />
-                  Critical Infrastructure
+                  Critical Infra
                 </label>
               </div>
               <div className="map-control-actions">
-                <button className="map-control-btn" onClick={() => {
-                  setCustomCenter(currentIncident.center);
-                  setCustomZoom(13);
-                }}>
+                <button className="map-control-btn" onClick={() => { setCustomCenter(currentIncident.center); setCustomZoom(13); }}>
                   FOCUS INCIDENT
                 </button>
-                <button className="map-control-btn" onClick={() => {
-                  setCustomCenter(activeScenario.mapCenter);
-                  setCustomZoom(activeScenario.mapZoom);
-                }}>
+                <button className="map-control-btn" onClick={() => { setCustomCenter(activeScenario.mapCenter); setCustomZoom(activeScenario.mapZoom); }}>
                   FIT RESPONSE AREA
                 </button>
               </div>
             </div>
 
-            {/* --- 4. INCIDENT SUMMARY OVERLAY --- */}
+            {/* Floating Summary Overlay */}
             <div className="map-summary-overlay">
               <div className="map-summary-header">
                 <h4 className="map-summary-title">{currentIncident.name}</h4>
-                <span className="map-summary-tag">{currentIncident.priority}</span>
+                <span className="map-summary-tag">{displayPriority}</span>
               </div>
               <p className="map-summary-type">{currentIncident.type}</p>
-              <div className="map-summary-stat-row">
-                <span>Affected:</span>
-                <strong>{currentIncident.affected.toLocaleString()}</strong>
-              </div>
-              <div className="map-summary-stat-row">
-                <span>Hazard Score:</span>
-                <strong className="red">{currentIncident.hazardScore} / 100</strong>
-              </div>
-              <div className="map-summary-stat-row">
-                <span>Access:</span>
-                <strong>{currentIncident.roadAccess}</strong>
-              </div>
+              <div className="map-summary-stat-row"><span>Affected:</span><strong>{currentIncident.affected.toLocaleString()}</strong></div>
+              <div className="map-summary-stat-row"><span>Hazard Score:</span><strong style={{ color: "#ff5463" }}>{displayHazardScore} / 100</strong></div>
+              <div className="map-summary-stat-row"><span>Road Access:</span><strong>{currentIncident.roadAccess}</strong></div>
             </div>
 
             <MapContainer center={mapCenter} zoom={activeScenario.mapZoom} scrollWheelZoom={true}>
@@ -1093,76 +1190,50 @@ function App(){
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
 
-              {/* A. HAZARD ZONES LAYER */}
+              {/* Hazard Zones Layer */}
               {showHazards && activeScenario.hazardZones.map((zone, idx) => {
                 if (zone.incident !== selected) return null;
                 if (zone.type === "polygon") {
-                  return (
-                    <Polygon
-                      key={`poly-${idx}`}
-                      positions={zone.positions}
-                      pathOptions={{color: zone.color, fillColor: zone.color, fillOpacity: 0.22}}
-                    />
-                  );
+                  return <Polygon key={`poly-${idx}`} positions={zone.positions} pathOptions={{ color: zone.color, fillColor: zone.color, fillOpacity: 0.22 }} />;
                 } else if (zone.type === "circle") {
-                  return (
-                    <Circle
-                      key={`circle-${idx}`}
-                      center={zone.center}
-                      radius={zone.radius}
-                      pathOptions={{color: zone.color, fillColor: zone.color, fillOpacity: 0.1}}
-                    />
-                  );
+                  return <Circle key={`circle-${idx}`} center={zone.center} radius={zone.radius} pathOptions={{ color: zone.color, fillColor: zone.color, fillOpacity: 0.12 }} />;
                 }
                 return null;
               })}
 
-              {/* B. SAFE SITES LAYER */}
+              {/* Safe Sites Layer */}
               {showSafeSites && Object.keys(activeScenario.safeSites).map((key) => {
                 const site = activeScenario.safeSites[key];
                 const isSelectedOverride = recommendedSite.name === site.name;
                 return (
-                  <Marker
-                    key={site.name}
-                    position={site.center}
-                    icon={createSafeIcon(isSelectedOverride)}
-                  >
-                    {/* --- 8. SAFE SITE POPUP --- */}
+                  <Marker key={site.name} position={site.center} icon={createSafeIcon(isSelectedOverride)}>
                     <Popup>
-                      <div style={{ minWidth: "160px", fontFamily: "Inter, sans-serif" }}>
-                        <h4 style={{ margin: "0 0 6px 0", fontSize: "11px", fontWeight: "800", color: "#1f5a8a", borderBottom: "1px solid #edf1f4", paddingBottom: "4px" }}>
-                          {site.name.toUpperCase()}
+                      <div style={{ minWidth: "170px", fontFamily: "Inter, sans-serif" }}>
+                        <h4 style={{ margin: "0 0 6px 0", fontSize: "11px", fontWeight: "800", color: "#3896e0", borderBottom: "1px solid #142f4c", paddingBottom: "4px" }}>
+                          🏠 {site.name.toUpperCase()}
                         </h4>
-                        <table style={{ width: "100%", fontSize: "9px", borderCollapse: "collapse", marginBottom: "8px" }}>
+                        <table style={{ width: "100%", fontSize: "9.5px", borderCollapse: "collapse", marginBottom: "8px" }}>
                           <tbody>
-                            <tr><td style={{ color: "#687b8a" }}>Capacity:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{site.capacity.toLocaleString()}</td></tr>
-                            <tr><td style={{ color: "#687b8a" }}>Occupied:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{site.occupied.toLocaleString()}</td></tr>
-                            <tr><td style={{ color: "#687b8a" }}>Available:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{site.available.toLocaleString()}</td></tr>
-                            <tr><td style={{ color: "#687b8a" }}>Distance:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{site.distance}</td></tr>
-                            <tr><td style={{ color: "#687b8a" }}>Exposure:</td><td style={{ textAlign: "right", fontWeight: "700", color: site.hazardExposure === "LOW" ? "#3faf6a" : "#d39422" }}>{site.hazardExposure}</td></tr>
-                            <tr><td style={{ color: "#687b8a" }}>Road Access:</td><td style={{ textAlign: "right", fontWeight: "700", color: "#3faf6a" }}>{site.roadAccess}</td></tr>
+                            <tr><td style={{ color: "#7b9bb6" }}>Capacity:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{site.capacity.toLocaleString()}</td></tr>
+                            <tr><td style={{ color: "#7b9bb6" }}>Occupied:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{site.occupied.toLocaleString()}</td></tr>
+                            <tr><td style={{ color: "#7b9bb6" }}>Available:</td><td style={{ textAlign: "right", fontWeight: "700", color: "#44d67c" }}>{site.available.toLocaleString()}</td></tr>
+                            <tr><td style={{ color: "#7b9bb6" }}>Distance:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{site.distance}</td></tr>
+                            <tr><td style={{ color: "#7b9bb6" }}>Exposure:</td><td style={{ textAlign: "right", fontWeight: "700", color: "#44d67c" }}>{site.hazardExposure}</td></tr>
+                            <tr><td style={{ color: "#7b9bb6" }}>Water Status:</td><td style={{ textAlign: "right", fontWeight: "700", color: "#44d67c" }}>{site.waterStatus || "VERIFIED"}</td></tr>
                           </tbody>
                         </table>
                         <button
-                          className="primary-btn"
                           style={{
-                            width: "100%",
-                            padding: "6px",
-                            background: isSelectedOverride ? "#3faf6a" : "#1f5a8a",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: "4px",
-                            fontWeight: "700",
-                            fontSize: "9px",
-                            cursor: "pointer"
+                            width: "100%", padding: "6px", background: isSelectedOverride ? "#3faf6a" : "#1f5a8a",
+                            color: "#fff", border: "none", borderRadius: "4px", fontWeight: "700", fontSize: "9px", cursor: "pointer"
                           }}
                           onClick={() => {
                             setSelectedSiteName(site.name);
-                            addActivityLog(`AI recommended safe site overridden to: ${site.name}`, "info");
-                            showToast(`Recommended safe site overridden to: ${site.name}`, "info");
+                            addActivityLog(`Safe site override selected: ${site.name}`, "info");
+                            showToast(`Selected safe site: ${site.name}`, "info");
                           }}
                         >
-                          {isSelectedOverride ? "✓ RECOMMENDED SITE" : "SELECT SITE"}
+                          {isSelectedOverride ? "✓ RECOMMENDED SITE" : "SELECT SAFE SITE"}
                         </button>
                       </div>
                     </Popup>
@@ -1170,57 +1241,41 @@ function App(){
                 );
               })}
 
-              {/* C. CRITICAL INFRASTRUCTURE LAYER */}
-              {showInfra && activeScenario.infrastructure.map((infra) => (
-                <Marker
-                  key={infra.name}
-                  position={infra.center}
-                  icon={createInfraIcon(infra.icon)}
-                >
-                  <Popup>
-                    <div style={{ fontSize: "10px", fontFamily: "Inter, sans-serif" }}>
-                      <strong>{infra.name}</strong>
-                      <div style={{ marginTop: "4px", color: "#687b8a" }}>Status: Full Operational Capacity</div>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
+              {/* Critical Infrastructure Layer */}
+              {showInfra && activeScenario.infrastructure.map((infra) => {
+                if (infraCategoryFilter && infra.category !== infraCategoryFilter) return null;
+                return (
+                  <Marker key={infra.name} position={infra.center} icon={createInfraIcon(infra.icon)}>
+                    <Popup>
+                      <div style={{ fontSize: "10.5px", fontFamily: "Inter, sans-serif" }}>
+                        <strong>{infra.icon} {infra.name}</strong>
+                        <div style={{ marginTop: "4px", color: "#7b9bb6" }}>Category: {infra.category}</div>
+                        <div style={{ color: "#44d67c", fontWeight: "700", marginTop: "2px" }}>Status: Operational</div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
 
-              {/* D. EVACUATION ROUTES LAYER */}
+              {/* Evacuation Routes Layer */}
               {showRoutes && activeScenario.evacuationRoutes.map((route, idx) => {
                 if (route.incident !== selected) return null;
                 return (
-                  <Polyline
-                    key={`route-${idx}`}
-                    positions={route.positions}
-                    pathOptions={{color: "#1f5a8a", weight: 4, dashArray: "5, 5", opacity: 0.85}}
-                  >
-                    {/* --- 9. EVACUATION ROUTE POPUP --- */}
+                  <Polyline key={`route-${idx}`} positions={route.positions} pathOptions={{ color: "#3896e0", weight: 4, dashArray: "6, 6", opacity: 0.85 }}>
                     <Popup>
-                      <div style={{ minWidth: "180px", fontFamily: "Inter, sans-serif" }}>
-                        <h4 style={{ margin: "0 0 6px 0", fontSize: "10px", fontWeight: "800", color: "#1f5a8a" }}>EVACUATION ROUTE</h4>
-                        <p style={{ margin: "0 0 8px 0", fontSize: "9px", color: "#687b8a", fontWeight: "600" }}>{route.name}</p>
+                      <div style={{ minWidth: "170px", fontFamily: "Inter, sans-serif" }}>
+                        <h4 style={{ margin: "0 0 4px 0", fontSize: "10px", fontWeight: "800", color: "#3896e0" }}>RECOMMENDED EVACUATION ROUTE</h4>
+                        <p style={{ margin: "0 0 8px 0", fontSize: "9px", color: "#7b9bb6", fontWeight: "600" }}>{route.name}</p>
                         <table style={{ width: "100%", fontSize: "9px", borderCollapse: "collapse", marginBottom: "8px" }}>
                           <tbody>
-                            <tr><td style={{ color: "#687b8a" }}>Distance:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{route.distance}</td></tr>
-                            <tr><td style={{ color: "#687b8a" }}>Est. Time:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{route.time}</td></tr>
-                            <tr><td style={{ color: "#687b8a" }}>Road Status:</td><td style={{ textAlign: "right", fontWeight: "700", color: route.status.includes("LIMIT") ? "#d39422" : "#3faf6a" }}>{route.status}</td></tr>
-                            <tr><td style={{ color: "#687b8a" }}>Congestion:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{route.congestion}</td></tr>
+                            <tr><td style={{ color: "#7b9bb6" }}>Distance:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{route.distance}</td></tr>
+                            <tr><td style={{ color: "#7b9bb6" }}>ETA:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{route.time}</td></tr>
+                            <tr><td style={{ color: "#7b9bb6" }}>Status:</td><td style={{ textAlign: "right", fontWeight: "700", color: "#44d67c" }}>{route.status}</td></tr>
+                            <tr><td style={{ color: "#7b9bb6" }}>Congestion:</td><td style={{ textAlign: "right", fontWeight: "700" }}>{route.congestion}</td></tr>
                           </tbody>
                         </table>
                         <button
-                          className="primary-btn"
-                          style={{
-                            width: "100%",
-                            padding: "6px",
-                            background: "#dc4653",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: "4px",
-                            fontWeight: "700",
-                            fontSize: "9px",
-                            cursor: "pointer"
-                          }}
+                          style={{ width: "100%", padding: "6px", background: "#ff5463", color: "#fff", border: "none", borderRadius: "4px", fontWeight: "700", fontSize: "9px", cursor: "pointer" }}
                           onClick={() => setActiveModal("evacuation")}
                         >
                           OPEN EVACUATION MODE
@@ -1231,98 +1286,233 @@ function App(){
                 );
               })}
 
-              {/* Current Active Incident Location Pin */}
+              {/* Active Incident Marker */}
               <Marker position={mapCenter} icon={createRiskIcon(currentIncident.risk === "CRITICAL")}>
                 <Popup>
-                  <div style={{ fontSize: "10px", fontFamily: "Inter, sans-serif" }}>
-                    <b>{currentIncident.name}</b>
-                    <br />
-                    Type: {currentIncident.type}
-                    <br />
-                    Priority: {currentIncident.priority}
+                  <div style={{ fontSize: "10.5px", fontFamily: "Inter, sans-serif" }}>
+                    <b>⚠️ {currentIncident.name}</b><br />
+                    Type: {currentIncident.type}<br />
+                    Priority: {displayPriority}
                   </div>
                 </Popup>
               </Marker>
             </MapContainer>
+
             <div className="map-callout">
-              <b>🔴 RED ZONE DETECTED</b>
-              <span>{activeScenario.locationName} • Prototype Data</span>
+              <b>🔴 HAZARD ZONE DETECTED</b>
+              <span>{activeScenario.locationName} • Prototype Simulation</span>
+            </div>
+          </div>
+
+          {/* Smart Evacuation Route Card */}
+          <div className="smart-route-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <span style={{ fontSize: "10px", fontWeight: "800", color: "#3896e0", letterSpacing: "0.5px" }}>RECOMMENDED EVACUATION ROUTE</span>
+              <span className="threat-pill moderate" style={{ fontSize: "8.5px" }}>STATUS: CLEAR</span>
+            </div>
+            <div className="smart-route-flow">
+              <span>{currentIncident.name}</span>
+              <span className="smart-route-arrow">&rarr; {activeEvacRoute ? activeEvacRoute.name.split("(")[0] : "Route R-04"} &rarr;</span>
+              <span>🟢 {recommendedSite.name}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10.5px", color: "#8aa3b8" }}>
+              <span>Distance: <strong style={{ color: "#ffffff" }}>{recommendedSite.distance}</strong> • ETA: <strong style={{ color: "#ffffff" }}>{activeEvacRoute ? activeEvacRoute.time : "11 min"}</strong> • Access: <strong style={{ color: "#ffffff" }}>{currentIncident.roadAccess}</strong></span>
+              <button
+                style={{ background: "#ff5463", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "10px", fontWeight: "800", cursor: "pointer" }}
+                onClick={() => setActiveModal("evacuation")}
+              >
+                VIEW ROUTE ON MAP &rarr;
+              </button>
             </div>
           </div>
         </section>
 
+        {/* Right Column */}
         <aside className="right">
-          {/* --- 5. AI RECOMMENDATION & DECISION BASIS --- */}
-          <div className="panel recommendation">
-            <div className="panel-title">AI RECOMMENDATION</div>
-            <div className="critical">{currentIncident.priority === "IMMEDIATE" ? "IMMEDIATE RELOCATION" : "MONITOR SITUATION"}</div>
-            
-            <p style={{ margin: "0 0 10px 0" }}>{currentIncident.name} has high exposure and evacuation constraints.</p>
-            
-            <div className="recommend-site" style={{ marginBottom: "12px" }}>
+          {/* AI Decision Support & Explainability Card */}
+          <div className="ai-explainability-card">
+            <div className="ai-gov-badge">🤖 JANRAKSHAK AI DECISION SUPPORT</div>
+            <div className="critical" style={{ fontSize: "16px", marginBottom: "4px" }}>
+              {displayPriority === "IMMEDIATE" ? "IMMEDIATE RELOCATION RECOMMENDED" : "MONITOR SITUATION"}
+            </div>
+            <p style={{ fontSize: "11px", color: "#8aa3b8", margin: "0 0 10px 0" }}>
+              {currentIncident.name} has high exposure and evacuation constraints.
+            </p>
+
+            <div className="recommend-site">
               <span>RECOMMENDED SAFE SITE</span>
               <b>🟢 {recommendedSite.name}</b>
               <small>{recommendedSite.distance} • {recommendedSite.available.toLocaleString()} capacity available</small>
             </div>
 
-            <div style={{ fontSize: "9px", color: "#687b8a", fontWeight: "700", textTransform: "uppercase", marginBottom: "4px" }}>
-              Decision Rationale:
+            <div style={{ fontSize: "9.5px", fontWeight: "800", color: "#3896e0", textTransform: "uppercase", marginTop: "10px", marginBottom: "4px" }}>
+              Verification Checkpoints:
             </div>
-            <p style={{ fontSize: "9.5px", margin: "0 0 12px 0", color: "#192634", lineHeight: "1.4" }}>
-              {currentIncident.explanation}
-            </p>
-
-            <div className="why">
-              <b>WHY {recommendedSite.name.toUpperCase()}?</b>
-              {currentIncident.whySite.map((why, idx) => (
-                <div key={idx}>✓ {why}</div>
+            <div className="ai-checkpoints">
+              {currentIncident.whySite.map((item, idx) => (
+                <div key={idx} className="ai-checkpoint-item">
+                  <span>✓</span> <span>{item}</span>
+                </div>
               ))}
             </div>
 
-            <div className="ai-basis-grid">
-              <div className="ai-basis-item">
-                <span>Flood Exposure</span>
-                <b className="red">{currentIncident.floodRisk}%</b>
-              </div>
-              <div className="ai-basis-item">
-                <span>Road Status</span>
-                <b>{currentIncident.roadAccess}</b>
-              </div>
-              <div className="ai-basis-item">
-                <span>At Risk</span>
-                <b>{currentIncident.affected.toLocaleString()}</b>
-              </div>
-              <div className="ai-basis-item">
-                <span>Site Capacity</span>
-                <b className="green">{recommendedSite.available.toLocaleString()}</b>
-              </div>
-              <div className="ai-basis-item">
-                <span>Distance</span>
-                <b>{recommendedSite.distance}</b>
-              </div>
-              <div className="ai-basis-item">
-                <span>AI Confidence</span>
-                <b className="blue">{currentIncident.confidence}%</b>
-              </div>
+            <div style={{ fontSize: "10px", color: "#7b9bb6", marginTop: "8px" }}>
+              AI Confidence Rating: <strong style={{ color: "#3896e0" }}>{currentIncident.confidence}%</strong>
             </div>
 
-            <div className="ai-confidence-badge">
-              🧠 AI System Confidence: {currentIncident.confidence}%
+            <div className="ai-actions-row">
+              <button className="btn-accept" onClick={() => {
+                addActivityLog(`AI Safe Site recommendation accepted: ${recommendedSite.name}`, "info");
+                showToast(`Accepted recommendation: ${recommendedSite.name}`, "success");
+              }}>
+                ACCEPT SITE
+              </button>
+              <button className="btn-override" onClick={() => setActiveModal("override")}>
+                OVERRIDE SITE
+              </button>
+            </div>
+
+            <div style={{ fontSize: "8.5px", color: "#627c94", marginTop: "10px", textAlign: "center" }}>
+              AI-ASSISTED DECISION SUPPORT • NOT AN AUTONOMOUS EVACUATION AUTHORITY
             </div>
           </div>
 
+          {/* Response Readiness Score Panel */}
+          <div className="panel">
+            <div className="panel-title">RESPONSE READINESS</div>
+            <div className="readiness-container">
+              <div className="readiness-score-ring">82%</div>
+              <div className="readiness-checklist">
+                <div className="readiness-check-pass">✓ Safe site identified & verified</div>
+                <div className="readiness-check-pass">✓ Evacuation route clear</div>
+                <div className="readiness-check-pass">✓ Medical support standby</div>
+                <div className="readiness-check-pass">✓ Response teams deployed</div>
+                <div className="readiness-check-warn">⚠ Population registration incomplete</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Vulnerability Snapshot Panel */}
           <div className="panel">
             <div className="panel-title">VULNERABILITY SNAPSHOT</div>
-            <div className="big-number">{currentIncident.affected.toLocaleString()}</div>
-            <div className="subtle">people potentially affected</div>
-            <div className="mini-grid">
-              <Mini label="Children" value={Math.round(currentIncident.affected * 0.18).toLocaleString()}/>
-              <Mini label="Elderly" value={Math.round(currentIncident.affected * 0.14).toLocaleString()}/>
-              <Mini label="Disability" value={Math.round(currentIncident.affected * 0.03).toLocaleString()}/>
-              <Mini label="Medical" value={Math.round(currentIncident.affected * 0.01).toLocaleString()}/>
+            <div className="big-number" style={{ fontSize: "28px", fontWeight: "800", color: "#3896e0" }}>
+              {currentIncident.affected.toLocaleString()}
+            </div>
+            <div className="subtle">PEOPLE AT RISK</div>
+
+            <div className="risk-meter-container" style={{ marginTop: "12px" }}>
+              <div className="risk-item">
+                <div className="risk-item-header">
+                  <span>Children (0-12 yrs)</span>
+                  <span style={{ fontWeight: "800", color: "#ffffff" }}>{currentIncident.vulnerability.children}</span>
+                </div>
+                <div className="risk-progress-track">
+                  <div className="risk-progress-fill" style={{ width: `${Math.round((currentIncident.vulnerability.children / currentIncident.affected) * 100)}%`, background: "#3896e0" }}></div>
+                </div>
+              </div>
+
+              <div className="risk-item">
+                <div className="risk-item-header">
+                  <span>Elderly (60+ yrs)</span>
+                  <span style={{ fontWeight: "800", color: "#ffffff" }}>{currentIncident.vulnerability.elderly}</span>
+                </div>
+                <div className="risk-progress-track">
+                  <div className="risk-progress-fill" style={{ width: `${Math.round((currentIncident.vulnerability.elderly / currentIncident.affected) * 100)}%`, background: "#ffb733" }}></div>
+                </div>
+              </div>
+
+              <div className="risk-item">
+                <div className="risk-item-header">
+                  <span>Persons with Disabilities</span>
+                  <span style={{ fontWeight: "800", color: "#ffffff" }}>{currentIncident.vulnerability.disability}</span>
+                </div>
+                <div className="risk-progress-track">
+                  <div className="risk-progress-fill" style={{ width: `${Math.round((currentIncident.vulnerability.disability / currentIncident.affected) * 100)}%`, background: "#ff5463" }}></div>
+                </div>
+              </div>
+
+              <div className="risk-item">
+                <div className="risk-item-header">
+                  <span>Medical Priority Cases</span>
+                  <span style={{ fontWeight: "800", color: "#ffffff" }}>{currentIncident.vulnerability.medical}</span>
+                </div>
+                <div className="risk-progress-track">
+                  <div className="risk-progress-fill" style={{ width: `${Math.round((currentIncident.vulnerability.medical / currentIncident.affected) * 100)}%`, background: "#ff5463" }}></div>
+                </div>
+              </div>
             </div>
           </div>
 
+          {/* What-If Scenario Simulator Panel */}
+          <div className="panel">
+            <div className="panel-title">SCENARIO SIMULATOR</div>
+            <div className="subtle">Adjust environmental parameters to simulate threat escalation</div>
+            
+            <div className="sim-controls-panel">
+              <div className="sim-slider-group">
+                <div className="sim-slider-item">
+                  <div className="sim-slider-label">
+                    <span>Rainfall Telemetry</span>
+                    <span style={{ color: "#ff5463" }}>{simRainfall} mm</span>
+                  </div>
+                  <input
+                    type="range" min="0" max="300" value={simRainfall}
+                    className="sim-slider-input"
+                    onChange={(e) => setSimRainfall(Number(e.target.value))}
+                  />
+                </div>
+
+                <div className="sim-slider-item">
+                  <div className="sim-slider-label">
+                    <span>Flood Risk Index</span>
+                    <span style={{ color: "#ff5463" }}>{simFloodRisk} / 100</span>
+                  </div>
+                  <input
+                    type="range" min="0" max="100" value={simFloodRisk}
+                    className="sim-slider-input"
+                    onChange={(e) => setSimFloodRisk(Number(e.target.value))}
+                  />
+                </div>
+
+                <div className="sim-slider-item">
+                  <div className="sim-slider-label">
+                    <span>Landslide Risk Index</span>
+                    <span style={{ color: "#ffb733" }}>{simLandslideRisk} / 100</span>
+                  </div>
+                  <input
+                    type="range" min="0" max="100" value={simLandslideRisk}
+                    className="sim-slider-input"
+                    onChange={(e) => setSimLandslideRisk(Number(e.target.value))}
+                  />
+                </div>
+
+                <div className="sim-slider-item">
+                  <div className="sim-slider-label">
+                    <span>Road Accessibility</span>
+                    <span style={{ color: "#3896e0" }}>{simRoadAccess}%</span>
+                  </div>
+                  <input
+                    type="range" min="0" max="100" value={simRoadAccess}
+                    className="sim-slider-input"
+                    onChange={(e) => setSimRoadAccess(Number(e.target.value))}
+                  />
+                </div>
+              </div>
+
+              <div className="sim-action-btns">
+                <button className="sim-btn-run" onClick={handleRunSimulation}>RUN SIMULATION</button>
+                <button className="sim-btn-reset" onClick={handleResetSimulation}>RESET</button>
+              </div>
+
+              {simActive && simResult && simResult.escalated && (
+                <div className="sim-escalation-alert">
+                  ⚡ THREAT ESCALATION DETECTED ({currentIncident.hazardScore} &rarr; {simResult.simScore})
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Response Actions */}
           <div className="panel actions">
             <div className="panel-title">RESPONSE ACTIONS</div>
             <button className="primary" onClick={() => setActiveModal("alerts")}>🚨 SEND AUTHORITY ALERTS</button>
@@ -1333,19 +1523,38 @@ function App(){
         </aside>
       </main>
 
+      {/* Incident Activity Timeline Section */}
+      <section style={{ padding: "0 32px 24px 32px", maxWidth: "1440px", margin: "0 auto" }}>
+        <div className="panel">
+          <div className="panel-title">
+            <span>INCIDENT ACTIVITY TIMELINE</span>
+            <span style={{ fontSize: "10px", color: "#627c94" }}>Time-stamped event log</span>
+          </div>
+          <div className="activity-timeline">
+            {activities.map((act, index) => (
+              <div key={index} className={`timeline-item ${act.type === "critical" ? "critical" : act.type === "sim" ? "sim" : ""}`}>
+                <span className="timeline-time">{act.time}</span>
+                <span className="timeline-text">{act.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
       <footer>
         <span>JANRAKSHAK • SIH26191 PROTOTYPE</span>
-        <span>Decision-support prototype • Simulated scenario for {activeScenario.name}</span>
+        <span>AI-assisted decision-support prototype • Simulated scenario data for {activeScenario.name}</span>
       </footer>
 
-      {/* Reusable Modal & Toast Components */}
+      {/* Reusable Modals & Toast Container */}
       <ToastContainer toasts={toasts} onClose={closeToast} />
 
-      {/* Modal 1: Send Authority Alerts */}
+      {/* Authority Alerts Modal */}
       <Modal
         isOpen={activeModal === "alerts"}
         onClose={() => setActiveModal(null)}
-        title="Emergency Authority Alert"
+        title="Emergency Authority Alert Dispatch"
         footer={
           dispatchedTimestamp ? (
             <button className="secondary-btn" onClick={() => setActiveModal(null)}>Close</button>
@@ -1357,54 +1566,33 @@ function App(){
           )
         }
       >
-        <p style={{ margin: "0 0 10px 0", fontSize: "13px", fontWeight: "700", color: "#dc4653" }}>Incident: {currentIncident.name}</p>
-        <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "6px", border: "1px solid #e0e7ed", marginBottom: "12px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
-            <span>Type:</span><strong>{currentIncident.type}</strong>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
-            <span>Hazard Score:</span><strong>{currentIncident.hazardScore}/100</strong>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
-            <span>People Affected:</span><strong>{currentIncident.affected.toLocaleString()}</strong>
-          </div>
+        <p style={{ margin: "0 0 10px 0", fontSize: "13px", fontWeight: "700", color: "#ff5463" }}>Incident: {currentIncident.name} ({activeScenario.name})</p>
+        <div style={{ background: "#071524", padding: "12px", borderRadius: "8px", border: "1px solid #10253c", marginBottom: "14px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}><span>Hazard Type:</span><strong>{currentIncident.type}</strong></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}><span>Composite Hazard Score:</span><strong style={{ color: "#ff5463" }}>{displayHazardScore}/100</strong></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}><span>People Affected:</span><strong>{currentIncident.affected.toLocaleString()}</strong></div>
         </div>
-        <p style={{ margin: "0 0 16px 0", fontWeight: "700", color: "#dc4653", fontStyle: "italic" }}>
-          ⚠️ Immediate relocation recommended.
-        </p>
         
-        <div style={{ fontWeight: "700", marginBottom: "6px", fontSize: "11px", color: "#687b8a" }}>ALERT RECIPIENTS:</div>
-        <div className="recipients-checklist">
-          <label className="recipient-label">
-            <input type="checkbox" defaultChecked disabled />
-            District Disaster Management Authority (DDMA)
-          </label>
-          <label className="recipient-label">
-            <input type="checkbox" defaultChecked disabled />
-            Local Police Department
-          </label>
-          <label className="recipient-label">
-            <input type="checkbox" defaultChecked disabled />
-            Medical Response Team
-          </label>
-          <label className="recipient-label">
-            <input type="checkbox" defaultChecked disabled />
-            NGOs / Volunteers Command
-          </label>
+        <div style={{ fontWeight: "700", marginBottom: "8px", fontSize: "11px", color: "#7b9bb6" }}>DISPATCH RECIPIENTS:</div>
+        <div className="recipients-checklist" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <label style={{ fontSize: "11px", display: "flex", gap: "8px", alignItems: "center" }}><input type="checkbox" defaultChecked disabled /> District Disaster Management Authority (DDMA)</label>
+          <label style={{ fontSize: "11px", display: "flex", gap: "8px", alignItems: "center" }}><input type="checkbox" defaultChecked disabled /> Local Police Department</label>
+          <label style={{ fontSize: "11px", display: "flex", gap: "8px", alignItems: "center" }}><input type="checkbox" defaultChecked disabled /> Emergency Medical Response Team</label>
+          <label style={{ fontSize: "11px", display: "flex", gap: "8px", alignItems: "center" }}><input type="checkbox" defaultChecked disabled /> Volunteer & NGO Operations Control</label>
         </div>
 
         {dispatchedTimestamp && (
-          <div className="alert-success-banner">
+          <div style={{ background: "rgba(63, 175, 106, 0.15)", color: "#44d67c", border: "1px solid rgba(63, 175, 106, 0.3)", padding: "10px", borderRadius: "8px", marginTop: "14px", textAlign: "center", fontWeight: "800" }}>
             🚀 ALERTS DISPATCHED AT {dispatchedTimestamp}
           </div>
         )}
       </Modal>
 
-      {/* Modal 2: Evacuation Mode */}
+      {/* Evacuation Mode Modal */}
       <Modal
         isOpen={activeModal === "evacuation"}
         onClose={() => setActiveModal(null)}
-        title="EVACUATION MODE"
+        title="EVACUATION PROTOCOL CONTROL"
         footer={
           evacuationActive ? (
             <button className="secondary-btn" onClick={() => setActiveModal(null)}>Close</button>
@@ -1417,83 +1605,67 @@ function App(){
         }
       >
         <div style={{ marginBottom: "16px" }}>
-          <span className="evac-alert-badge">PRIORITY: IMMEDIATE</span>
-          <h3 style={{ margin: "0 0 4px 0", fontSize: "16px", fontWeight: "800" }}>{currentIncident.name} Evacuation Plan</h3>
-          <p style={{ margin: "0", color: "#687b8a" }}>{currentIncident.affected.toLocaleString()} people potentially affected</p>
+          <span className="threat-pill critical">PRIORITY: IMMEDIATE</span>
+          <h3 style={{ margin: "8px 0 4px 0", fontSize: "16px", fontWeight: "800" }}>{currentIncident.name} Evacuation Protocol</h3>
+          <p style={{ margin: "0", color: "#8aa3b8" }}>{currentIncident.affected.toLocaleString()} residents inside danger zone</p>
         </div>
 
         {evacuationActive ? (
-          <div className="evac-status-banner" style={{ background: "#eff9f2", color: "#276543", borderColor: "#ccebd6" }}>
-            🟢 EVACUATION PLAN ACTIVE
+          <div style={{ background: "rgba(63, 175, 106, 0.15)", color: "#44d67c", border: "1px solid rgba(63, 175, 106, 0.3)", padding: "12px", borderRadius: "8px", textAlign: "center", fontWeight: "800", marginBottom: "16px" }}>
+            🟢 EVACUATION PROTOCOL ACTIVE
           </div>
         ) : (
-          <div className="evac-status-banner" style={{ background: "#fff1d2", color: "#a26b00", borderColor: "#ffe3a8", animation: "none" }}>
-            ⚠️ EVACUATION PLAN PENDING ACTIVATION
+          <div style={{ background: "rgba(212, 142, 34, 0.15)", color: "#ffb733", border: "1px solid rgba(212, 142, 34, 0.3)", padding: "12px", borderRadius: "8px", textAlign: "center", fontWeight: "800", marginBottom: "16px" }}>
+            ⚠️ EVACUATION PROTOCOL PENDING ACTIVATION
           </div>
         )}
 
-        <div className="evac-details-grid">
-          <div className="evac-card">
-            <h4>Registered for Relocation</h4>
-            <p>{Math.round(currentIncident.affected * 0.32).toLocaleString()}</p>
-            <small>32% of affected population</small>
-            <div className="progress-bar-container">
-              <div className="progress-bar-fill" style={{ width: "32%" }}></div>
-            </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+          <div style={{ background: "#071524", border: "1px solid #10253c", padding: "12px", borderRadius: "8px" }}>
+            <h4 style={{ margin: "0 0 4px 0", fontSize: "10px", color: "#7b9bb6" }}>Registered for Relocation</h4>
+            <p style={{ margin: 0, fontSize: "18px", fontWeight: "800", color: "#ffffff" }}>{Math.round(currentIncident.affected * 0.32).toLocaleString()}</p>
+            <small style={{ color: "#627c94" }}>32% of affected population</small>
           </div>
-          <div className="evac-card">
-            <h4>Remaining in Danger Zone</h4>
-            <p>{(currentIncident.affected - Math.round(currentIncident.affected * 0.32)).toLocaleString()}</p>
-            <small>Requires urgent transport</small>
-            <div className="progress-bar-container">
-              <div className="progress-bar-fill" style={{ width: "68%", background: "#dc4653" }}></div>
-            </div>
+          <div style={{ background: "#071524", border: "1px solid #10253c", padding: "12px", borderRadius: "8px" }}>
+            <h4 style={{ margin: "0 0 4px 0", fontSize: "10px", color: "#7b9bb6" }}>Remaining in Danger Zone</h4>
+            <p style={{ margin: 0, fontSize: "18px", fontWeight: "800", color: "#ff5463" }}>{(currentIncident.affected - Math.round(currentIncident.affected * 0.32)).toLocaleString()}</p>
+            <small style={{ color: "#627c94" }}>Requires urgent transport</small>
           </div>
         </div>
 
-        <div className="evac-destination">
-          <h4 style={{ color: "#1f5a8a" }}>Recommended Destination</h4>
-          <p style={{ color: "#1f5a8a" }}>🟢 {recommendedSite.name}</p>
-          <small style={{ color: "#687b8a" }}>
-            Distance: {recommendedSite.distance} • Available Capacity: {recommendedSite.available.toLocaleString()}
-          </small>
-        </div>
-
-        <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "6px", border: "1px solid #cbd8e2", marginBottom: "16px", fontSize: "10px" }}>
-          <div><strong>Recommended Evacuation Route:</strong> {currentIncident.name} → {recommendedSite.name}</div>
-          <div style={{ marginTop: "4px" }}><strong>Est. Travel Time:</strong> 11 min</div>
-          <div style={{ marginTop: "4px" }}><strong>Route Status:</strong> <span style={{ color: "#3faf6a", fontWeight: "700" }}>CLEAR</span></div>
+        <div className="recommend-site">
+          <span>RECOMMENDED DESTINATION</span>
+          <b>🟢 {recommendedSite.name}</b>
+          <small>Distance: {recommendedSite.distance} • Available Capacity: {recommendedSite.available.toLocaleString()}</small>
         </div>
       </Modal>
 
-      {/* Modal 3: Coordinate NGOs */}
+      {/* NGO Coordination Modal */}
       <Modal
         isOpen={activeModal === "ngos"}
         onClose={() => setActiveModal(null)}
-        title="NGO & Volunteer Coordination"
-        footer={
-          <button className="secondary-btn" onClick={() => setActiveModal(null)}>Close</button>
-        }
+        title="NGO & Volunteer Team Coordination"
+        footer={<button className="secondary-btn" onClick={() => setActiveModal(null)}>Close</button>}
       >
-        <p style={{ marginBottom: "16px", color: "#687b8a" }}>Select emergency teams to deploy to {currentIncident.name} coordinates:</p>
-        <div className="ngo-list">
+        <p style={{ marginBottom: "16px", color: "#8aa3b8" }}>Deploy emergency response units to {currentIncident.name}:</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {[
-            { name: "Medical Volunteers", desc: "24 personnel available", val: "Medical Volunteers" },
-            { name: "Food & Water Team", desc: "38 personnel available", val: "Food & Water Team" },
-            { name: "Transport Volunteers", desc: "17 personnel available", val: "Transport Volunteers" },
-            { name: "Search & Rescue", desc: "12 personnel available", val: "Search & Rescue" }
+            { name: "Medical Volunteers", desc: "24 personnel standby", val: "Medical Volunteers" },
+            { name: "Food & Water Distribution Team", desc: "38 personnel standby", val: "Food & Water Team" },
+            { name: "Transport & Logistics Unit", desc: "17 personnel standby", val: "Transport Volunteers" },
+            { name: "Search & Rescue Squad", desc: "12 personnel standby", val: "Search & Rescue" }
           ].map((group) => {
             const isDeployed = deployedNgos.includes(group.val);
             return (
-              <div key={group.val} className="ngo-row">
-                <div className="ngo-info">
-                  <h4>{group.name}</h4>
-                  <span>{group.desc}</span>
+              <div key={group.val} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#071524", border: "1px solid #10253c", borderRadius: "8px", padding: "12px" }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: "12px", color: "#ffffff" }}>{group.name}</h4>
+                  <span style={{ fontSize: "10px", color: "#7b9bb6" }}>{group.desc}</span>
                 </div>
                 {isDeployed ? (
-                  <span className="ngo-deployed-badge">DEPLOYED</span>
+                  <span style={{ background: "rgba(63, 175, 106, 0.15)", color: "#44d67c", border: "1px solid rgba(63, 175, 106, 0.3)", padding: "4px 10px", borderRadius: "4px", fontSize: "10px", fontWeight: "800" }}>DEPLOYED</span>
                 ) : (
-                  <button className="ngo-deploy-btn" onClick={() => deployNgo(group.val)}>Deploy</button>
+                  <button style={{ background: "#3896e0", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "10px", fontWeight: "700", cursor: "pointer" }} onClick={() => deployNgo(group.val)}>Deploy</button>
                 )}
               </div>
             );
@@ -1501,50 +1673,42 @@ function App(){
         </div>
       </Modal>
 
-      {/* Modal 4: View Relief Needs */}
+      {/* Verified Relief Needs Modal */}
       <Modal
         isOpen={activeModal === "relief"}
         onClose={() => setActiveModal(null)}
-        title="Verified Relief Needs"
-        footer={
-          <button className="secondary-btn" onClick={() => setActiveModal(null)}>Close</button>
-        }
+        title="Verified Relief Needs & Requests"
+        footer={<button className="secondary-btn" onClick={() => setActiveModal(null)}>Close</button>}
       >
-        <p style={{ marginBottom: "12px", color: "#687b8a" }}>Current supply requests and critical shortfalls for {currentIncident.name}:</p>
-        <table className="relief-table">
+        <p style={{ marginBottom: "12px", color: "#8aa3b8" }}>Critical resource requirements for {currentIncident.name}:</p>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
           <thead>
-            <tr>
-              <th>Need Item</th>
-              <th>Quantity</th>
-              <th>Priority</th>
-              <th>Status / Action</th>
+            <tr style={{ background: "#071524", color: "#7b9bb6", borderBottom: "1px solid #10253c" }}>
+              <th style={{ padding: "8px", textAlign: "left" }}>Need Item</th>
+              <th style={{ padding: "8px", textAlign: "left" }}>Quantity</th>
+              <th style={{ padding: "8px", textAlign: "left" }}>Priority</th>
+              <th style={{ padding: "8px", textAlign: "left" }}>Status</th>
             </tr>
           </thead>
           <tbody>
             {[
-              { name: "Drinking Water", qty: "2,500 L", priority: "HIGH", colorClass: "high" },
-              { name: "Food Kits", qty: "1,100 kits", priority: "HIGH", colorClass: "high" },
-              { name: "Blankets", qty: "620 units", priority: "MEDIUM", colorClass: "medium" },
-              { name: "Medical Kits", qty: "180 units", priority: "CRITICAL", colorClass: "critical" },
-              { name: "Temporary Shelters", qty: "420 units", priority: "HIGH", colorClass: "high" }
+              { name: "Drinking Water", qty: "2,500 L", priority: "HIGH", color: "#ffb733" },
+              { name: "Food Ration Kits", qty: "1,100 kits", priority: "HIGH", color: "#ffb733" },
+              { name: "Blankets", qty: "620 units", priority: "MEDIUM", color: "#3896e0" },
+              { name: "Medical First-Aid Kits", qty: "180 units", priority: "CRITICAL", color: "#ff5463" },
+              { name: "Temporary Tents", qty: "420 units", priority: "HIGH", color: "#ffb733" }
             ].map((item) => {
               const isCoordinated = coordinatedNeeds.includes(item.name);
               return (
-                <tr key={item.name}>
-                  <td style={{ fontWeight: "600" }}>{item.name}</td>
-                  <td>{item.qty}</td>
-                  <td>
-                    <span className={`relief-priority ${item.colorClass}`}>
-                      {item.priority}
-                    </span>
-                  </td>
-                  <td>
+                <tr key={item.name} style={{ borderBottom: "1px solid #10253c" }}>
+                  <td style={{ padding: "10px 8px", fontWeight: "700", color: "#ffffff" }}>{item.name}</td>
+                  <td style={{ padding: "10px 8px" }}>{item.qty}</td>
+                  <td style={{ padding: "10px 8px" }}><span style={{ color: item.color, fontWeight: "800", fontSize: "9px" }}>{item.priority}</span></td>
+                  <td style={{ padding: "10px 8px" }}>
                     {isCoordinated ? (
-                      <span className="relief-coordinated-text">COORDINATED</span>
+                      <span style={{ color: "#44d67c", fontWeight: "800" }}>COORDINATED</span>
                     ) : (
-                      <button className="relief-coordinate-btn" onClick={() => coordinateNeed(item.name)}>
-                        Mark as Coordinated
-                      </button>
+                      <button style={{ background: "#0b2036", color: "#8aa3b8", border: "1px solid #1c3e63", padding: "4px 8px", borderRadius: "4px", fontSize: "9.5px", cursor: "pointer" }} onClick={() => coordinateNeed(item.name)}>Mark Coordinated</button>
                     )}
                   </td>
                 </tr>
@@ -1553,16 +1717,54 @@ function App(){
           </tbody>
         </table>
       </Modal>
+
+      {/* Manual Safe Site Override Modal */}
+      <Modal
+        isOpen={activeModal === "override"}
+        onClose={() => setActiveModal(null)}
+        title="MANUAL SAFE SITE OVERRIDE"
+        footer={<button className="secondary-btn" onClick={() => setActiveModal(null)}>Close</button>}
+      >
+        <p style={{ color: "#8aa3b8", marginBottom: "14px" }}>Select an alternative safe site destination for {currentIncident.name}:</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          {Object.keys(activeScenario.safeSites).map((siteKey) => {
+            const site = activeScenario.safeSites[siteKey];
+            const isCurrent = recommendedSite.name === site.name;
+            return (
+              <div key={site.name} style={{ background: isCurrent ? "rgba(63, 175, 106, 0.1)" : "#071524", border: `1px solid ${isCurrent ? "rgba(63, 175, 106, 0.3)" : "#10253c"}`, borderRadius: "8px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <h4 style={{ margin: "0 0 4px 0", fontSize: "13px", color: "#ffffff" }}>{site.name}</h4>
+                  <div style={{ fontSize: "10px", color: "#7b9bb6" }}>Distance: {site.distance} • Capacity: {site.capacity} • Available: {site.available}</div>
+                </div>
+                {isCurrent ? (
+                  <span style={{ fontSize: "10px", fontWeight: "800", color: "#44d67c", background: "rgba(63, 175, 106, 0.15)", padding: "4px 8px", borderRadius: "4px" }}>SELECTED</span>
+                ) : (
+                  <button
+                    style={{ background: "#3896e0", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "10px", fontWeight: "700", cursor: "pointer" }}
+                    onClick={() => {
+                      setSelectedSiteName(site.name);
+                      addActivityLog(`Safe site override selected: ${site.name}`, "info");
+                      showToast(`Selected safe site: ${site.name}`, "info");
+                      setActiveModal(null);
+                    }}
+                  >
+                    SELECT SITE
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Modal>
     </div>
-  )
+  );
 }
 
+// Modal Component
 function Modal({ isOpen, onClose, title, children, footer }) {
   useEffect(() => {
     if (!isOpen) return;
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") onClose();
-    };
+    const handleKeyDown = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
@@ -1576,24 +1778,19 @@ function Modal({ isOpen, onClose, title, children, footer }) {
           <h3>{title}</h3>
           <button className="modal-close-btn" onClick={onClose} aria-label="Close modal">&times;</button>
         </header>
-        <div className="modal-body">
-          {children}
-        </div>
-        {footer && (
-          <footer className="modal-footer">
-            {footer}
-          </footer>
-        )}
+        <div className="modal-body">{children}</div>
+        {footer && <footer className="modal-footer">{footer}</footer>}
       </div>
     </div>
   );
 }
 
+// Toast Notifications Container
 function ToastContainer({ toasts, onClose }) {
   return (
     <div className="toast-container">
       {toasts.map((toast) => (
-        <div key={toast.id} className="toast" role="alert" style={{ borderLeftColor: toast.type === "info" ? "#1f5a8a" : "#3faf6a" }}>
+        <div key={toast.id} className="toast" role="alert" style={{ borderLeftColor: toast.type === "info" ? "#3896e0" : "#44d67c" }}>
           <span>{toast.message}</span>
           <button className="toast-close" onClick={() => onClose(toast.id)} aria-label="Dismiss message">&times;</button>
         </div>
@@ -1602,9 +1799,7 @@ function ToastContainer({ toasts, onClose }) {
   );
 }
 
-function Stat({label,value,tone}){return <div className="stat"><span>{label}</span><b className={tone}>{value}</b></div>}
-function Incident({name,type,risk,selected,onClick}){return <button className={"incident "+(selected?"selected":"")} onClick={onClick}><div><b>{name}</b><small>{type}</small></div><span className={risk==="CRITICAL"?"pill redpill":"pill amberpill"}>{risk}</span></button>}
-function Metric({label,value,tone}){return <div className="metric"><span>{label}</span><b className={tone}>{value}</b></div>}
-function Mini({label,value}){return <div><b>{value}</b><small>{label}</small></div>}
+function Stat({ label, value, tone }) { return <div className="stat"><span>{label}</span><b className={tone}>{value}</b></div>; }
+function Incident({ name, type, risk, selected, onClick }) { return <button className={"incident " + (selected ? "selected" : "")} onClick={onClick}><div><b>{name}</b><small>{type}</small></div><span className={risk === "CRITICAL" ? "pill redpill" : "pill amberpill"}>{risk}</span></button>; }
 
-createRoot(document.getElementById("root")).render(<App/>);
+createRoot(document.getElementById("root")).render(<App />);
